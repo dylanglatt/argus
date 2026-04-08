@@ -42,8 +42,8 @@ export const EVENT_TYPES = {
 };
 
 export const MAP_CONFIG = {
-  center: [30, 15],  // Center on Africa/Middle East — primary conflict zones
-  zoom: 2.2,
+  center: [18, 12],  // Centered on sub-Saharan Africa — balanced global conflict distribution
+  zoom: 2.0,
   style: 'mapbox://styles/mapbox/navigation-night-v1',
 };
 

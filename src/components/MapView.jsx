@@ -6,17 +6,15 @@ import { EVENT_TYPES, MAP_CONFIG } from '../utils/constants';
 /**
  * MapView — fills the upper content area.
  * Dark Mapbox basemap, circle markers sized by num_mentions and colored by
- * event type. Events are clustered at low zoom levels to clean up dense
- * areas (Middle East, Sahel). Click clusters to zoom in; click individual
- * markers for detail popup.
+ * event type. Events are clustered at low zoom levels. Cluster color reflects
+ * conflict density: low count = dim blue, high count = saturated red (heat).
  *
  * Auto-fit: on first event load, the map flies to the bounding box of all
- * loaded events, giving an operationally honest initial view rather than a
- * static default center.
+ * loaded events, giving an operationally honest initial view.
  */
-export function MapView({ events, onEventClick }) {
-  const mapRef            = useRef(null);
-  const hasFitted         = useRef(false);
+export function MapView({ events, onEventClick, selectedEventId }) {
+  const mapRef          = useRef(null);
+  const hasFitted       = useRef(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [popupCoords,   setPopupCoords]   = useState(null);
   const mapToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -30,8 +28,8 @@ export function MapView({ events, onEventClick }) {
     const validEvents = events.filter((e) => e.latitude && e.longitude);
     if (validEvents.length === 0) return;
 
-    const lngs = validEvents.map((e) => e.longitude);
-    const lats  = validEvents.map((e) => e.latitude);
+    const lngs   = validEvents.map((e) => e.longitude);
+    const lats   = validEvents.map((e) => e.latitude);
     const bounds = [
       [Math.min(...lngs), Math.min(...lats)],
       [Math.max(...lngs), Math.max(...lats)],
@@ -90,7 +88,7 @@ export function MapView({ events, onEventClick }) {
   const handleMapClick = (e) => {
     const features = e.features || [];
 
-    // Cluster click → zoom to cluster expansion
+    // Cluster click → zoom
     const cluster = features.find((f) => f.layer?.id === 'conflict-clusters');
     if (cluster) {
       const map       = mapRef.current?.getMap();
@@ -116,6 +114,15 @@ export function MapView({ events, onEventClick }) {
       setPopupCoords(null);
     }
   };
+
+  // Event type breakdown for legend
+  const typeCounts = useMemo(() => {
+    const counts = {};
+    events.forEach((e) => {
+      counts[e.event_type] = (counts[e.event_type] || 0) + 1;
+    });
+    return counts;
+  }, [events]);
 
   if (!mapToken) {
     return (
@@ -158,7 +165,7 @@ export function MapView({ events, onEventClick }) {
       >
         <NavigationControl position="top-right" showCompass={false} />
 
-        {/* Clustering source — events within ~50px of each other merge at zoom < 5 */}
+        {/* Clustering source */}
         <Source
           id="conflict-events"
           type="geojson"
@@ -167,7 +174,7 @@ export function MapView({ events, onEventClick }) {
           clusterMaxZoom={5}
           clusterRadius={50}
         >
-          {/* Cluster bubble */}
+          {/* Cluster bubble — color by conflict density (blue → orange → red) */}
           <Layer
             id="conflict-clusters"
             type="circle"
@@ -175,19 +182,27 @@ export function MapView({ events, onEventClick }) {
             paint={{
               'circle-color': [
                 'step', ['get', 'point_count'],
-                '#1e3a5f',   10,
-                '#1d4ed8',   30,
-                '#7c3aed',
+                '#1d3557',   15,   // small cluster: dark navy
+                '#1d4ed8',   50,   // medium: blue
+                '#b45309',   150,  // large: amber
+                '#b91c1c',         // very large: red (conflict density)
               ],
               'circle-radius': [
                 'step', ['get', 'point_count'],
-                14,   10,
-                18,   30,
-                22,
+                14,   15,
+                18,   50,
+                22,   150,
+                28,
               ],
-              'circle-opacity':        0.85,
-              'circle-stroke-width':   1,
-              'circle-stroke-color':   'rgba(255,255,255,0.15)',
+              'circle-opacity':        0.9,
+              'circle-stroke-width':   1.5,
+              'circle-stroke-color': [
+                'step', ['get', 'point_count'],
+                'rgba(100,140,255,0.3)',  15,
+                'rgba(100,140,255,0.3)',  50,
+                'rgba(255,160,50,0.3)',   150,
+                'rgba(255,80,80,0.3)',
+              ],
             }}
           />
 
@@ -197,13 +212,11 @@ export function MapView({ events, onEventClick }) {
             type="symbol"
             filter={['has', 'point_count']}
             layout={{
-              'text-field':  ['get', 'point_count_abbreviated'],
-              'text-font':   ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-              'text-size':   10,
+              'text-field': ['get', 'point_count_abbreviated'],
+              'text-font':  ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+              'text-size':  10,
             }}
-            paint={{
-              'text-color': '#e2e4e9',
-            }}
+            paint={{ 'text-color': '#e2e4e9' }}
           />
 
           {/* Individual unclustered points */}
@@ -214,10 +227,10 @@ export function MapView({ events, onEventClick }) {
             paint={{
               'circle-radius':         radiusExpr,
               'circle-color':          colorExpr,
-              'circle-opacity':        0.85,
-              'circle-stroke-width':   0.5,
+              'circle-opacity':        0.88,
+              'circle-stroke-width':   0.75,
               'circle-stroke-color':   '#ffffff',
-              'circle-stroke-opacity': 0.25,
+              'circle-stroke-opacity': 0.2,
             }}
           />
         </Source>
@@ -238,96 +251,131 @@ export function MapView({ events, onEventClick }) {
         )}
       </Map>
 
-      {/* Top-left: Theater label + GDELT badge */}
+      {/* Top-left: Theater label + data source badge */}
       <div style={{
         position: 'absolute', top: '12px', left: '12px', zIndex: 400,
         display: 'flex', flexDirection: 'column', gap: '6px',
       }}>
         <div style={{
-          background: 'rgba(10, 10, 15, 0.88)',
-          border: '1px solid #1e1e30',
-          padding: '4px 10px',
-          backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', gap: '8px',
+          background:     'rgba(10, 10, 15, 0.92)',
+          border:         '1px solid #1e1e30',
+          padding:        '5px 12px',
+          backdropFilter: 'blur(6px)',
+          display:        'flex',
+          alignItems:     'center',
+          gap:            '10px',
         }}>
           <span style={{
-            fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 600,
-            textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280',
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '9px',
+            fontWeight:    700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            color:         '#4a4a6a',
           }}>
             THEATER OVERVIEW
           </span>
           <span style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: '9px',
-            color: '#e2e4e9', fontWeight: 500,
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize:   '11px',
+            color:      '#e2e4e9',
+            fontWeight: 600,
           }}>
             {events.length.toLocaleString()} events
           </span>
         </div>
 
-        {/* GDELT update cadence badge */}
+        {/* GDELT badge */}
         <div style={{
-          background: 'rgba(10, 10, 15, 0.88)',
-          border: '1px solid #1e1e3088',
-          padding: '3px 8px',
-          backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', gap: '5px',
+          background:     'rgba(10, 10, 15, 0.92)',
+          border:         '1px solid #1e1e3066',
+          padding:        '3px 10px',
+          backdropFilter: 'blur(6px)',
+          display:        'flex',
+          alignItems:     'center',
+          gap:            '6px',
         }}>
           <div style={{
-            width: '5px', height: '5px', borderRadius: '50%',
-            background: '#10b981', flexShrink: 0,
-            boxShadow: '0 0 4px #10b981',
+            width:      '5px',
+            height:     '5px',
+            borderRadius: '50%',
+            background: '#10b981',
+            flexShrink: 0,
+            boxShadow:  '0 0 5px #10b981',
           }} />
           <span style={{
-            fontFamily: 'Inter, sans-serif', fontSize: '9px',
-            color: '#6b7280', letterSpacing: '0.04em',
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '9px',
+            fontWeight:    500,
+            color:         '#6b7280',
+            letterSpacing: '0.05em',
           }}>
             GDELT · 15 MIN REFRESH
           </span>
         </div>
       </div>
 
-      {/* Bottom-right: coverage scale legend (moved away from Mapbox logo) */}
+      {/* Bottom-right: event type breakdown mini-legend */}
       <div style={{
-        position: 'absolute', bottom: '28px', right: '12px', zIndex: 400,
-        background: 'rgba(10, 10, 15, 0.88)',
-        border: '1px solid #1e1e30',
-        padding: '8px 10px',
-        backdropFilter: 'blur(4px)',
+        position:       'absolute',
+        bottom:         '28px',
+        right:          '12px',
+        zIndex:         400,
+        background:     'rgba(10, 10, 15, 0.92)',
+        border:         '1px solid #1e1e30',
+        padding:        '8px 10px',
+        backdropFilter: 'blur(6px)',
+        minWidth:       '140px',
       }}>
         <div style={{
-          fontFamily: 'Inter, sans-serif', fontSize: '9px', fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280',
-          marginBottom: '6px',
+          fontFamily:    'Inter, sans-serif',
+          fontSize:      '9px',
+          fontWeight:    700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          color:         '#4a4a6a',
+          marginBottom:  '7px',
         }}>
-          COVERAGE WEIGHT
+          EVENT TYPES
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {[
-            { r: 4, label: '1' },
-            { r: 7, label: '30' },
-            { r: 11, label: '100' },
-            { r: 14, label: '300+' },
-          ].map(({ r, label }) => (
-            <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-              <div style={{
-                width: r * 2 + 'px', height: r * 2 + 'px', borderRadius: '50%',
-                background: 'rgba(180,180,180,0.25)', border: '1px solid rgba(255,255,255,0.15)',
-                flexShrink: 0,
-              }} />
+        {Object.entries(EVENT_TYPES).map(([key, type]) => {
+          const count = typeCounts[key] || 0;
+          if (count === 0) return null;
+          return (
+            <div key={key} style={{
+              display:        'flex',
+              alignItems:     'center',
+              justifyContent: 'space-between',
+              gap:            '8px',
+              marginBottom:   '3px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{
+                  width:      '5px',
+                  height:     '5px',
+                  background: type.color,
+                  transform:  'rotate(45deg)',
+                  flexShrink: 0,
+                }} />
+                <span style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize:   '9px',
+                  color:      '#6b7280',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {type.label.split('/')[0].trim()}
+                </span>
+              </div>
               <span style={{
-                fontFamily: 'JetBrains Mono, monospace', fontSize: '8px', color: '#4a4a5a',
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize:   '9px',
+                color:      '#4a4a6a',
               }}>
-                {label}
+                {count}
               </span>
             </div>
-          ))}
-          <span style={{
-            fontFamily: 'Inter, sans-serif', fontSize: '9px', color: '#4a4a5a',
-            marginLeft: '2px',
-          }}>
-            mentions
-          </span>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -335,16 +383,13 @@ export function MapView({ events, onEventClick }) {
 
 function PopupContent({ event }) {
   const eventType = EVENT_TYPES[event.type];
-
-  // Impact score color
-  const score = event.impact_score ?? 0;
+  const score     = event.impact_score ?? 0;
   const impactColor =
     score >= 8 ? '#ef4444' :
     score >= 5 ? '#eab308' :
                  '#6b7280';
 
-  // Tone color: negative = bad, positive = good
-  const tone = event.avg_tone ?? 0;
+  const tone     = event.avg_tone ?? 0;
   const toneColor = tone < -5 ? '#ef4444' : tone < 0 ? '#eab308' : '#10b981';
   const toneStr   = `${tone > 0 ? '+' : ''}${tone.toFixed(1)}`;
 
@@ -353,11 +398,11 @@ function PopupContent({ event }) {
       {/* Type badge */}
       <div style={{
         fontSize:      '9px',
-        fontWeight:    600,
+        fontWeight:    700,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
         color:         eventType?.color || '#9ca3af',
-        marginBottom:  '2px',
+        marginBottom:  '4px',
         display:       'flex',
         alignItems:    'center',
         gap:           '5px',
@@ -377,19 +422,20 @@ function PopupContent({ event }) {
         fontSize:     '13px',
         fontWeight:   600,
         color:        '#e2e4e9',
-        marginBottom: '8px',
+        marginBottom: '10px',
+        lineHeight:   1.3,
       }}>
         {event.location}
       </div>
 
       {/* Details grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
-        <Detail label="DATE"       value={event.date}                               mono />
-        <Detail label="IMPACT"     value={`${score}/10`}  mono valueColor={impactColor} />
+        <Detail label="DATE"       value={event.date}                              mono />
+        <Detail label="IMPACT"     value={`${score}/10`} mono valueColor={impactColor} />
         <Detail label="ACTOR 1"    value={event.actor1} />
         <Detail label="ACTOR 2"    value={event.actor2 || '—'} />
         <Detail label="MENTIONS"   value={(event.num_mentions ?? 0).toLocaleString()} mono />
-        <Detail label="AVG TONE"   value={toneStr}        mono valueColor={toneColor} />
+        <Detail label="AVG TONE"   value={toneStr}       mono valueColor={toneColor} />
       </div>
 
       {/* Notes */}
@@ -400,14 +446,14 @@ function PopupContent({ event }) {
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             color:         '#6b7280',
-            marginBottom:  '2px',
+            marginBottom:  '3px',
           }}>
             NOTES
           </div>
           <div style={{
             fontSize:            '10px',
             color:               '#9ca3af',
-            lineHeight:          '1.4',
+            lineHeight:          '1.5',
             display:             '-webkit-box',
             WebkitLineClamp:     3,
             WebkitBoxOrient:     'vertical',
@@ -426,15 +472,15 @@ function PopupContent({ event }) {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              fontFamily:    'Inter, sans-serif',
-              fontSize:      '9px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color:         '#3b82f6',
+              fontFamily:     'Inter, sans-serif',
+              fontSize:       '9px',
+              textTransform:  'uppercase',
+              letterSpacing:  '0.05em',
+              color:          '#3b82f6',
               textDecoration: 'none',
             }}
-            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+            onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
+            onMouseLeave={(e) => (e.target.style.textDecoration = 'none')}
           >
             PRIMARY SOURCE →
           </a>
@@ -452,6 +498,7 @@ function Detail({ label, value, mono, valueColor }) {
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
         color:         '#6b7280',
+        marginBottom:  '1px',
       }}>
         {label}
       </div>

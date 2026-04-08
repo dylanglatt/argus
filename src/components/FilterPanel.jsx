@@ -3,17 +3,30 @@ import { EVENT_TYPES } from '../utils/constants';
 
 const LABEL_STYLE = {
   fontFamily:    'Inter, sans-serif',
-  fontSize:      '10px',
-  fontWeight:    600,
+  fontSize:      '9px',
+  fontWeight:    700,
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color:         '#6b7280',
+  letterSpacing: '0.08em',
+  color:         '#4a4a6a',
 };
 
 const SECTION_GAP = { marginBottom: '20px' };
 
+const INPUT_STYLE = {
+  width:         '100%',
+  boxSizing:     'border-box',
+  background:    '#0d0d14',
+  border:        '1px solid #1e1e30',
+  borderRadius:  0,
+  padding:       '7px 10px',
+  fontFamily:    'Inter, sans-serif',
+  fontSize:      '11px',
+  color:         '#9ca3af',
+  outline:       'none',
+};
+
 /**
- * FilterPanel — 320px fixed left panel.
+ * FilterPanel — 280px fixed left panel.
  *
  * Filters:
  *   - Free-text search (location, actor, notes, country)
@@ -21,18 +34,13 @@ const SECTION_GAP = { marginBottom: '20px' };
  *   - Region / country multi-select (derived dynamically from event data)
  *   - Temporal range (date pickers)
  *   - Min conflict severity (0–10, inverted Goldstein Scale)
- *
- * Props:
- *   filters            - current filter state
- *   onFilterChange     - (newFilters) => void
- *   availableCountries - string[] derived from loaded events
  */
 export function FilterPanel({ filters, onFilterChange, availableCountries = [] }) {
   const [countrySearch,       setCountrySearch]       = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [biasExpanded,        setBiasExpanded]        = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -73,104 +81,129 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
   );
 
   const impactMin = filters.impactMin ?? 0;
+  const activeTypeCount = filters.eventTypes.length;
+  const activeRegionCount = filters.countries.length;
 
   return (
     <div style={{
-      width:         '320px',
-      minWidth:      '320px',
+      width:         '280px',
+      minWidth:      '280px',
       background:    '#0a0a0f',
       borderRight:   '1px solid #1e1e30',
       overflowY:     'auto',
       display:       'flex',
       flexDirection: 'column',
     }}>
-      <div style={{ padding: '16px' }}>
+      <div style={{ padding: '14px 14px 20px' }}>
 
         {/* Panel header */}
-        <div style={{ ...LABEL_STYLE, marginBottom: '16px' }}>PARAMETERS</div>
+        <div style={{
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: 'space-between',
+          marginBottom:   '16px',
+          paddingBottom:  '10px',
+          borderBottom:   '1px solid #1e1e30',
+        }}>
+          <span style={{ ...LABEL_STYLE, color: '#6b7280' }}>PARAMETERS</span>
+          {(activeTypeCount > 0 || activeRegionCount > 0 || filters.searchQuery || impactMin > 0) && (
+            <span style={{
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '9px',
+              color:         '#3b82f6',
+              border:        '1px solid #3b82f640',
+              padding:       '2px 6px',
+              letterSpacing: '0.05em',
+            }}>
+              FILTERED
+            </span>
+          )}
+        </div>
 
         {/* Search */}
         <div style={SECTION_GAP}>
+          <div style={{ ...LABEL_STYLE, marginBottom: '6px' }}>SEARCH</div>
           <input
             type="text"
-            placeholder="QUERY TARGET..."
+            placeholder="Locations, actors, keywords..."
             value={filters.searchQuery}
             onChange={(e) => onFilterChange({ ...filters, searchQuery: e.target.value })}
-            style={{
-              width:         '100%',
-              boxSizing:     'border-box',
-              background:    '#0d0d14',
-              border:        '1px solid #1e1e30',
-              borderRadius:  0,
-              padding:       '7px 10px',
-              fontFamily:    'Inter, sans-serif',
-              fontSize:      '11px',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              color:         '#9ca3af',
-              outline:       'none',
-            }}
+            style={{ ...INPUT_STYLE, letterSpacing: '0' }}
             onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
             onBlur={(e)  => (e.target.style.borderColor = '#1e1e30')}
           />
         </div>
 
+        {/* Separator */}
+        <div style={{ borderTop: '1px solid #1e1e30', marginBottom: '20px' }} />
+
         {/* Classifications */}
         <div style={SECTION_GAP}>
-          <div style={{ ...LABEL_STYLE, marginBottom: '10px' }}>CLASSIFICATIONS</div>
+          <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>
+            CLASSIFICATION
+            {activeTypeCount > 0 && (
+              <span style={{ color: '#3b82f6', marginLeft: '6px' }}>({activeTypeCount})</span>
+            )}
+          </div>
           <div>
             {Object.entries(EVENT_TYPES).map(([key, type]) => {
-              const active = filters.eventTypes.length === 0 || filters.eventTypes.includes(key);
+              const isActive = filters.eventTypes.length === 0 || filters.eventTypes.includes(key);
+              const isSelected = filters.eventTypes.includes(key);
               return (
                 <div
                   key={key}
                   onClick={() => toggleEventType(key)}
                   style={{
-                    display:        'flex',
-                    alignItems:     'center',
-                    justifyContent: 'space-between',
-                    height:         '32px',
-                    padding:        '0 8px',
-                    cursor:         'pointer',
-                    border:         '1px solid #1e1e30',
-                    marginBottom:   '4px',
-                    opacity:        active ? 1 : 0.35,
-                    transition:     'opacity 0.15s, background 0.15s',
-                    background:     filters.eventTypes.includes(key) ? '#16161d' : 'transparent',
+                    display:    'flex',
+                    alignItems: 'center',
+                    height:     '30px',
+                    padding:    '0 8px',
+                    cursor:     'pointer',
+                    border:     `1px solid ${isSelected ? type.color + '40' : '#1e1e30'}`,
+                    borderLeft: `3px solid ${isSelected ? type.color : 'transparent'}`,
+                    marginBottom: '3px',
+                    opacity:    isActive ? 1 : 0.3,
+                    transition: 'all 0.15s',
+                    background: isSelected ? `${type.color}10` : 'transparent',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#16161d')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = filters.eventTypes.includes(key) ? '#16161d' : 'transparent')}
+                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = '#16161d'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? `${type.color}10` : 'transparent'; }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{
-                      width:      '6px',
-                      height:     '6px',
-                      background: type.color,
-                      transform:  'rotate(45deg)',
-                      flexShrink: 0,
-                    }} />
-                    <span style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize:   '12px',
-                      fontWeight: 400,
-                      color:      '#e2e4e9',
-                    }}>
-                      {type.label}
-                    </span>
-                  </div>
+                  <div style={{
+                    width:      '5px',
+                    height:     '5px',
+                    background: type.color,
+                    transform:  'rotate(45deg)',
+                    flexShrink: 0,
+                    marginRight: '8px',
+                  }} />
+                  <span style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize:   '11px',
+                    fontWeight: isSelected ? 500 : 400,
+                    color:      isSelected ? '#e2e4e9' : '#9ca3af',
+                    flex:       1,
+                  }}>
+                    {type.label}
+                  </span>
                 </div>
               );
             })}
           </div>
         </div>
 
+        {/* Separator */}
+        <div style={{ borderTop: '1px solid #1e1e30', marginBottom: '20px' }} />
+
         {/* Regions */}
         <div style={SECTION_GAP} ref={dropdownRef}>
           <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>
-            REGIONS ({filters.countries.length})
+            REGION FOCUS
+            {activeRegionCount > 0 && (
+              <span style={{ color: '#3b82f6', marginLeft: '6px' }}>({activeRegionCount})</span>
+            )}
           </div>
 
-          {/* Selected country pills */}
           {filters.countries.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
               {filters.countries.map((c) => (
@@ -181,7 +214,7 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
                     fontFamily: 'Inter, sans-serif',
                     fontSize:   '10px',
                     color:      '#9ca3af',
-                    border:     '1px solid #1e1e30',
+                    border:     '1px solid #3b82f640',
                     padding:    '2px 6px',
                     cursor:     'pointer',
                     background: '#16161d',
@@ -196,41 +229,30 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
           <div style={{ position: 'relative' }}>
             <input
               type="text"
-              placeholder="Add region..."
+              placeholder="Add country..."
               value={countrySearch}
               onChange={(e) => setCountrySearch(e.target.value)}
-              style={{
-                width:        '100%',
-                boxSizing:    'border-box',
-                background:   '#0d0d14',
-                border:       '1px solid #1e1e30',
-                borderRadius: 0,
-                padding:      '7px 10px',
-                fontFamily:   'Inter, sans-serif',
-                fontSize:     '11px',
-                color:        '#9ca3af',
-                outline:      'none',
-              }}
+              style={{ ...INPUT_STYLE }}
               onFocus={(e) => { setShowCountryDropdown(true); e.target.style.borderColor = '#3b82f6'; }}
               onBlur={(e)  => (e.target.style.borderColor = '#1e1e30')}
             />
             {showCountryDropdown && filteredCountries.length > 0 && (
               <div style={{
-                position:  'absolute',
-                top:       '100%',
-                left:      0,
-                right:     0,
+                position:   'absolute',
+                top:        '100%',
+                left:       0,
+                right:      0,
                 background: '#0d0d14',
-                border:    '1px solid #1e1e30',
-                borderTop: 'none',
-                maxHeight: '160px',
-                overflowY: 'auto',
-                zIndex:    100,
+                border:     '1px solid #1e1e30',
+                borderTop:  'none',
+                maxHeight:  '160px',
+                overflowY:  'auto',
+                zIndex:     100,
               }}>
                 {filteredCountries.map((country) => (
                   <div
                     key={country}
-                    onClick={() => { toggleCountry(country); setCountrySearch(''); }}
+                    onMouseDown={() => { toggleCountry(country); setCountrySearch(''); }}
                     style={{
                       padding:      '6px 10px',
                       fontFamily:   'Inter, sans-serif',
@@ -257,6 +279,9 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
           </div>
         </div>
 
+        {/* Separator */}
+        <div style={{ borderTop: '1px solid #1e1e30', marginBottom: '20px' }} />
+
         {/* Date Range */}
         <div style={SECTION_GAP}>
           <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>TEMPORAL RANGE</div>
@@ -265,52 +290,37 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
               type="date"
               value={filters.dateRange.start || ''}
               onChange={(e) => onFilterChange({ ...filters, dateRange: { ...filters.dateRange, start: e.target.value } })}
-              style={{
-                width:        '100%',
-                boxSizing:    'border-box',
-                background:   '#0d0d14',
-                border:       '1px solid #1e1e30',
-                borderRadius: 0,
-                padding:      '7px 10px',
-                fontFamily:   'JetBrains Mono, monospace',
-                fontSize:     '11px',
-                color:        '#9ca3af',
-                outline:      'none',
-                colorScheme:  'dark',
-              }}
+              style={{ ...INPUT_STYLE, fontFamily: 'JetBrains Mono, monospace', colorScheme: 'dark' }}
             />
             <input
               type="date"
               value={filters.dateRange.end || ''}
               onChange={(e) => onFilterChange({ ...filters, dateRange: { ...filters.dateRange, end: e.target.value } })}
-              style={{
-                width:        '100%',
-                boxSizing:    'border-box',
-                background:   '#0d0d14',
-                border:       '1px solid #1e1e30',
-                borderRadius: 0,
-                padding:      '7px 10px',
-                fontFamily:   'JetBrains Mono, monospace',
-                fontSize:     '11px',
-                color:        '#9ca3af',
-                outline:      'none',
-                colorScheme:  'dark',
-              }}
+              style={{ ...INPUT_STYLE, fontFamily: 'JetBrains Mono, monospace', colorScheme: 'dark' }}
             />
           </div>
         </div>
 
-        {/* Min conflict severity (Goldstein-derived impact score 0–10) */}
+        {/* Separator */}
+        <div style={{ borderTop: '1px solid #1e1e30', marginBottom: '20px' }} />
+
+        {/* Min conflict severity */}
         <div style={SECTION_GAP}>
           <div style={{
             ...LABEL_STYLE,
-            marginBottom: '8px',
-            display:      'flex',
+            marginBottom:   '8px',
+            display:        'flex',
             justifyContent: 'space-between',
-            alignItems:   'center',
+            alignItems:     'center',
           }}>
-            <span>MIN CONFLICT SEVERITY</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#e2e4e9' }}>
+            <span>MIN SEVERITY</span>
+            <span style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize:   '10px',
+              color:      impactMin >= 7 ? '#ef4444' : impactMin >= 4 ? '#eab308' : '#6b7280',
+              border:     '1px solid #1e1e30',
+              padding:    '1px 5px',
+            }}>
               {impactMin}/10
             </span>
           </div>
@@ -321,38 +331,20 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
             step="1"
             value={impactMin}
             onChange={(e) => onFilterChange({ ...filters, impactMin: parseInt(e.target.value, 10) || 0 })}
-            style={{ width: '100%' }}
+            style={{ width: '100%', accentColor: '#3b82f6' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+            <span style={{ ...LABEL_STYLE, fontSize: '9px' }}>LOW</span>
             <span style={{
               fontFamily:    'Inter, sans-serif',
-              fontSize:      '9px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color:         '#6b7280',
-            }}>
-              LOW
-            </span>
-            <span style={{
-              fontFamily:    'Inter, sans-serif',
-              fontSize:      '9px',
+              fontSize:      '8px',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              color:         '#ef4444',
-              border:        '1px solid #ef444440',
-              padding:       '1px 5px',
+              color:         '#ef444460',
             }}>
               GOLDSTEIN SCALE
             </span>
-            <span style={{
-              fontFamily:    'Inter, sans-serif',
-              fontSize:      '9px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color:         '#6b7280',
-            }}>
-              HIGH
-            </span>
+            <span style={{ ...LABEL_STYLE, fontSize: '9px', color: '#ef444499' }}>HIGH</span>
           </div>
         </div>
 
@@ -361,50 +353,68 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
           onClick={handleReset}
           style={{
             width:         '100%',
-            background:    '#0d0d14',
+            background:    'transparent',
             border:        '1px solid #1e1e30',
             borderRadius:  0,
             padding:       '8px',
             fontFamily:    'Inter, sans-serif',
-            fontSize:      '10px',
-            fontWeight:    600,
+            fontSize:      '9px',
+            fontWeight:    700,
             textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color:         '#6b7280',
+            letterSpacing: '0.08em',
+            color:         '#4a4a6a',
             cursor:        'pointer',
+            transition:    'all 0.15s',
+            marginBottom:  '16px',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = '#e2e4e9'; e.currentTarget.style.borderColor = '#3a3a50'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#1e1e30'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#4a4a6a'; e.currentTarget.style.borderColor = '#1e1e30'; }}
         >
           RESET ALL FILTERS
         </button>
 
-        {/* Source bias notice */}
+        {/* Source bias notice — collapsible */}
         <div style={{
-          marginTop:  '20px',
-          padding:    '8px 10px',
-          border:     '1px solid #1e1e3088',
-          background: '#0d0d1488',
+          border:     '1px solid #1e1e30',
+          background: '#0d0d14',
         }}>
-          <div style={{
-            fontFamily:    'Inter, sans-serif',
-            fontSize:      '9px',
-            fontWeight:    600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            color:         '#4a4a6a',
-            marginBottom:  '4px',
-          }}>
-            SOURCE BIAS NOTICE
+          <div
+            onClick={() => setBiasExpanded((v) => !v)}
+            style={{
+              display:        'flex',
+              alignItems:     'center',
+              justifyContent: 'space-between',
+              padding:        '7px 10px',
+              cursor:         'pointer',
+            }}
+          >
+            <span style={{
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '9px',
+              fontWeight:    700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color:         '#4a4a6a',
+            }}>
+              ⚠ SOURCE BIAS
+            </span>
+            <span style={{ color: '#4a4a6a', fontSize: '10px' }}>
+              {biasExpanded ? '▲' : '▼'}
+            </span>
           </div>
-          <div style={{
-            fontFamily: 'Inter, sans-serif',
-            fontSize:   '10px',
-            color:      '#4a4a5a',
-            lineHeight: '1.5',
-          }}>
-            GDELT indexes English-language news. US, UK, and Western Europe events are overrepresented relative to ground truth. Filter by region and cross-reference primary sources when assessing event density.
-          </div>
+          {biasExpanded && (
+            <div style={{
+              padding:    '0 10px 9px',
+              fontFamily: 'Inter, sans-serif',
+              fontSize:   '10px',
+              color:      '#6b7280',
+              lineHeight: '1.55',
+              borderTop:  '1px solid #1e1e30',
+              paddingTop: '8px',
+            }}>
+              GDELT indexes English-language news. US, UK, and Western Europe events are overrepresented relative to ground truth. Cross-reference primary sources when assessing event density in underreported regions.
+            </div>
+          )}
         </div>
 
       </div>

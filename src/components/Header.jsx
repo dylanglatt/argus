@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * Header — 48px fixed bar.
- * Left:  ARGUS wordmark.
- * Right: live stats (events, sources, countries) + zulu timestamp.
- *
- * GDELT does not publish fatality counts; we surface media source count
- * instead — the density of independent outlets corroborates event severity
- * and reflects OSINT tradecraft (triangulating across sources).
+ * Header — 52px fixed bar.
+ * Top accent line = conflict heat (red when avg Goldstein is deeply negative).
+ * Left:  ARGUS wordmark + live indicator.
+ * Right: live stats (events, sources, countries, avg tone, zulu time).
  */
-export function Header({ stats, fetchedAt }) {
+export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
   const [zuluTime,   setZuluTime]   = useState('');
   const [refreshAge, setRefreshAge] = useState('—');
+  const [pulse,      setPulse]      = useState(true);
 
   useEffect(() => {
     const tick = () => {
@@ -21,7 +19,6 @@ export function Header({ stats, fetchedAt }) {
       const s   = String(now.getUTCSeconds()).padStart(2, '0');
       setZuluTime(`${h}:${m}:${s}Z`);
 
-      // Compute time since last GDELT cache fill
       if (fetchedAt) {
         const elapsedMs  = Date.now() - fetchedAt;
         const elapsedMin = Math.floor(elapsedMs / 60000);
@@ -36,29 +33,99 @@ export function Header({ stats, fetchedAt }) {
     return () => clearInterval(id);
   }, [fetchedAt]);
 
+  // Pulse the live dot every 2s
+  useEffect(() => {
+    const id = setInterval(() => setPulse((p) => !p), 2000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Avg Goldstein tone → header accent color + value display
+  const avgG = stats?.avgGoldstein ?? 0;
+  const toneColor =
+    avgG < -5 ? '#ef4444' :
+    avgG < -2 ? '#f97316' :
+    avgG <  0 ? '#eab308' :
+                '#10b981';
+  const toneStr = `${avgG > 0 ? '+' : ''}${avgG.toFixed(1)}`;
+
+  // Top accent gradient: color based on threat posture
+  const accentColor = avgG < -3 ? '#ef4444' : avgG < 0 ? '#f97316' : '#1e1e30';
+
   return (
     <div style={{
-      height:     '48px',
-      minHeight:  '48px',
-      background: '#0a0a0f',
-      borderBottom: '1px solid #1e1e30',
-      display:    'flex',
-      alignItems: 'center',
+      height:        '52px',
+      minHeight:     '52px',
+      background:    '#0a0a0f',
+      borderBottom:  '1px solid #1e1e30',
+      borderTop:     `2px solid ${accentColor}`,
+      display:       'flex',
+      alignItems:    'center',
       justifyContent: 'space-between',
-      padding:    '0 16px',
-      flexShrink: 0,
+      padding:       '0 16px',
+      flexShrink:    0,
     }}>
-      {/* Wordmark */}
-      <span style={{
-        fontFamily:    'Inter, sans-serif',
-        fontSize:      '14px',
-        fontWeight:    600,
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        color:         '#e2e4e9',
-      }}>
-        ARGUS
-      </span>
+      {/* Left: wordmark + live indicator + focus toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <span style={{
+          fontFamily:    'Inter, sans-serif',
+          fontSize:      '13px',
+          fontWeight:    700,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color:         '#e2e4e9',
+        }}>
+          ARGUS
+        </span>
+        {/* Live dot */}
+        <div style={{
+          display:    'flex',
+          alignItems: 'center',
+          gap:        '5px',
+        }}>
+          <div style={{
+            width:      '6px',
+            height:     '6px',
+            borderRadius: '50%',
+            background: pulse ? '#10b981' : '#10b98166',
+            boxShadow:  pulse ? '0 0 6px #10b981' : 'none',
+            transition: 'all 0.6s ease',
+          }} />
+          <span style={{
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '9px',
+            fontWeight:    500,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color:         '#4a4a6a',
+          }}>
+            LIVE
+          </span>
+        </div>
+
+        {/* Map focus toggle */}
+        <button
+          onClick={onToggleMapFocus}
+          title={mapFocus ? 'Show event feed' : 'Map focus mode'}
+          style={{
+            background:    mapFocus ? '#1a2a1a' : 'transparent',
+            border:        `1px solid ${mapFocus ? '#10b98140' : '#1e1e30'}`,
+            borderRadius:  0,
+            padding:       '3px 9px',
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '8px',
+            fontWeight:    700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color:         mapFocus ? '#10b981' : '#4a4a6a',
+            cursor:        'pointer',
+            transition:    'all 0.15s',
+          }}
+          onMouseEnter={(e) => { if (!mapFocus) { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.borderColor = '#3a3a50'; }}}
+          onMouseLeave={(e) => { if (!mapFocus) { e.currentTarget.style.color = '#4a4a6a'; e.currentTarget.style.borderColor = '#1e1e30'; }}}
+        >
+          {mapFocus ? '⊠ MAP FOCUS' : '⊡ MAP FOCUS'}
+        </button>
+      </div>
 
       {/* Right stats */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
@@ -68,6 +135,8 @@ export function Header({ stats, fetchedAt }) {
         <Divider />
         <StatCell label="COUNTRIES"   value={stats?.countriesAffected ?? 0}              valueColor="#e2e4e9" />
         <Divider />
+        <StatCell label="AVG TONE"    value={toneStr}                                    valueColor={toneColor} mono tooltip="Goldstein Scale avg. Negative = conflict pressure." />
+        <Divider />
         <StatCell label="LAST REFRESH" value={refreshAge}                                valueColor="#6b7280" mono />
         <Divider />
         <StatCell label="ZULU TIME"   value={zuluTime}                                   valueColor="#9ca3af" mono />
@@ -76,25 +145,29 @@ export function Header({ stats, fetchedAt }) {
   );
 }
 
-function StatCell({ label, value, valueColor, mono }) {
+function StatCell({ label, value, valueColor, mono, tooltip }) {
   return (
-    <div style={{ padding: '0 16px', textAlign: 'right' }}>
+    <div
+      title={tooltip}
+      style={{ padding: '0 16px', textAlign: 'right', cursor: tooltip ? 'help' : 'default' }}
+    >
       <div style={{
         fontFamily:    'Inter, sans-serif',
-        fontSize:      '10px',
-        fontWeight:    500,
+        fontSize:      '9px',
+        fontWeight:    600,
         textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        color:         '#6b7280',
-        marginBottom:  '1px',
+        letterSpacing: '0.07em',
+        color:         '#4a4a6a',
+        marginBottom:  '2px',
       }}>
         {label}
       </div>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
         fontSize:   '13px',
         fontWeight: 600,
         color:      valueColor,
+        lineHeight: 1,
       }}>
         {value}
       </div>
@@ -106,7 +179,7 @@ function Divider() {
   return (
     <div style={{
       width:      '1px',
-      height:     '28px',
+      height:     '24px',
       background: '#1e1e30',
       flexShrink: 0,
     }} />

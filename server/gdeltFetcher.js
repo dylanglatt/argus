@@ -87,11 +87,13 @@ function mapEventType(eventRootCode, eventCode) {
   // Violence against civilians — assault, hostage-taking, mass violence
   if (root === 18 || root === 20) return 'Violence against civilians';
 
-  // Battles — fighting, military engagement, coercive force
-  if (root === 19 || root === 17) return 'Battles';
+  // Battles — fighting, military engagement
+  if (root === 19) return 'Battles';
 
-  // Strategic developments — threats, force posture, severed relations
-  if (root === 13 || root === 15 || root === 16) return 'Strategic developments';
+  // Strategic developments — threats, force posture, severed relations, coercion
+  // Root 17 (COERCE) includes sanctions, seizures, expulsions — political pressure,
+  // not battlefield activity. Grouping with strategic developments is more accurate.
+  if (root === 13 || root === 15 || root === 16 || root === 17) return 'Strategic developments';
 
   return null; // Not a conflict event we track
 }
@@ -281,14 +283,24 @@ function normalizeRow(cols, hourBucket = 0) {
   const quadClass = parseInt(cols[C.QuadClass], 10);
   const rootCode  = parseInt(cols[C.EventRootCode], 10);
 
-  // Keep only conflict events (Verbal Conflict = 3, Material Conflict = 4)
-  // Also allow root codes 13–20 that can appear across quad classes
-  const isConflict =
-    quadClass >= 3 ||
-    (rootCode >= 13 && rootCode <= 20);
+  // Keep only conflict events (Verbal Conflict = 3, Material Conflict = 4).
+  // Both gates must pass: QuadClass ensures GDELT's own conflict classification,
+  // AND root code must be a conflict-relevant category (13–20).
+  // Using || was too permissive — root codes 13–20 include judicial/legal events
+  // (e.g. root 17 COERCE, code 172 "Arrest or detain") that would pass even
+  // when QuadClass indicates a cooperative or neutral event.
+  const isConflict = quadClass >= 3 && rootCode >= 13 && rootCode <= 20;
   if (!isConflict) return null;
 
   const eventCode = String(cols[C.EventCode] || '').trim();
+
+  // Exclude domestic judicial / legal-process CAMEO codes that are not
+  // operational conflict events:
+  //   172 — Arrest or detain with legal action  (criminal prosecutions, guilty pleas)
+  //   173 — Expel or deport individuals         (immigration enforcement)
+  // These pass root-17 (COERCE) but represent legal proceedings, not conflict.
+  const JUDICIAL_CODES = new Set(['172', '173']);
+  if (JUDICIAL_CODES.has(eventCode) || JUDICIAL_CODES.has(eventCode.slice(0, 3))) return null;
   const eventType = mapEventType(cols[C.EventRootCode], eventCode);
   if (!eventType) return null;
 

@@ -103,6 +103,6 @@ app.get('/api/events', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\nSentinel server running on http://localhost:${PORT}`);
+  console.log(`\nArgus server running on http://localhost:${PORT}`);
   console.log(`Data source: GDELT 2.0 Event Database (no credentials required)\n`);
 });

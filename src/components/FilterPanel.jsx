@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
+import { HotZones } from './HotZones';
+import { CountryBrief } from './CountryBrief';
 
 const LABEL_STYLE = {
   fontFamily:    'Inter, sans-serif',
@@ -35,7 +37,7 @@ const INPUT_STYLE = {
  *   - Temporal range (date pickers)
  *   - Min conflict severity (0–10, inverted Goldstein Scale)
  */
-export function FilterPanel({ filters, onFilterChange, availableCountries = [] }) {
+export function FilterPanel({ filters, onFilterChange, availableCountries = [], allEvents = [], briefCountry, onSelectCountry, onCloseBrief }) {
   const [countrySearch,       setCountrySearch]       = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [biasExpanded,        setBiasExpanded]        = useState(false);
@@ -93,7 +95,17 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
       overflowY:     'auto',
       display:       'flex',
       flexDirection: 'column',
+      position:      'relative',
     }}>
+
+      {/* Country Brief overlay — slides over filter content when a country is selected */}
+      {briefCountry && (
+        <CountryBrief
+          country={briefCountry}
+          events={allEvents}
+          onClose={onCloseBrief}
+        />
+      )}
       <div style={{ padding: '14px 14px 20px' }}>
 
         {/* Panel header */}
@@ -347,6 +359,12 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [] }
             <span style={{ ...LABEL_STYLE, fontSize: '9px', color: '#ef444499' }}>HIGH</span>
           </div>
         </div>
+
+        {/* Separator */}
+        <div style={{ borderTop: '1px solid #1e1e30', marginBottom: '20px' }} />
+
+        {/* Hot Zones — escalation detection */}
+        <HotZones events={allEvents} onSelectCountry={onSelectCountry} />
 
         {/* Reset */}
         <button

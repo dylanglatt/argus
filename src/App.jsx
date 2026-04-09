@@ -33,10 +33,11 @@ export default function App() {
     searchQuery: '',
   });
 
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [mapFocus,      setMapFocus]      = useState(false);
+  const [selectedEvent,  setSelectedEvent]  = useState(null);
+  const [mapFocus,       setMapFocus]       = useState(false);
+  const [briefCountry,   setBriefCountry]   = useState(null);
 
-  const { filteredEvents, availableCountries, stats, dataSource, fetchedAt } = useEventData(filters);
+  const { events, filteredEvents, availableCountries, stats, dataSource, fetchedAt } = useEventData(filters);
 
   const handleEventClick = (event) => {
     setSelectedEvent((prev) =>
@@ -64,6 +65,10 @@ export default function App() {
           filters={filters}
           onFilterChange={setFilters}
           availableCountries={availableCountries}
+          allEvents={events}
+          briefCountry={briefCountry}
+          onSelectCountry={setBriefCountry}
+          onCloseBrief={() => setBriefCountry(null)}
         />
 
         {/* Content area */}

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dylanglatt/argus/main/public/favicon.svg" width="90" height="90" alt="Argus"/>
+  <img src="public/favicon.svg" width="90" height="90" alt="Argus"/>
 </p>
 
 # ARGUS — Global Conflict Event Tracker

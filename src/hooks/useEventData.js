@@ -27,6 +27,7 @@ export function useEventData(filters = {}) {
     dateRange   = { start: null, end: null },
     impactMin   = 0,
     searchQuery = '',
+    timeWindow  = 'ALL', // 'ALL' | '24H' | '48H' | '72H'
   } = filters;
 
   // Fetch on mount
@@ -59,7 +60,18 @@ export function useEventData(filters = {}) {
 
   // Apply filters
   const filteredEvents = useMemo(() => {
+    // Rolling time window cutoff date (YYYY-MM-DD)
+    let windowCutoff = null;
+    if (timeWindow !== 'ALL') {
+      const hours = timeWindow === '24H' ? 24 : timeWindow === '48H' ? 48 : 72;
+      const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+      windowCutoff = cutoff.toISOString().slice(0, 10);
+    }
+
     return events.filter((event) => {
+      // Rolling time window
+      if (windowCutoff && event.event_date < windowCutoff) return false;
+
       // Event type filter
       if (eventTypes.length > 0 && !eventTypes.includes(event.event_type)) {
         return false;
@@ -97,7 +109,7 @@ export function useEventData(filters = {}) {
 
       return true;
     });
-  }, [events, eventTypes, countries, dateRange, impactMin, searchQuery]);
+  }, [events, eventTypes, countries, dateRange, impactMin, searchQuery, timeWindow]);
 
   // Compute aggregate stats from filtered set
   const stats = useMemo(() => {
@@ -125,6 +137,24 @@ export function useEventData(filters = {}) {
       ? filteredEvents.reduce((max, e) => e.event_date > max ? e.event_date : max, '')
       : null;
 
+    // Trend: compare avg Goldstein of recent half vs prior half of the filtered set.
+    // A more negative recent average = conflict intensifying = ESCALATING.
+    const sortedByDate = [...filteredEvents].sort((a, b) =>
+      a.event_date < b.event_date ? -1 : 1
+    );
+    const mid        = Math.floor(sortedByDate.length / 2);
+    const priorHalf  = sortedByDate.slice(0, mid);
+    const recentHalf = sortedByDate.slice(mid);
+    const halfAvg    = (arr) =>
+      arr.length === 0
+        ? 0
+        : arr.reduce((s, e) => s + (e.goldstein_scale || 0), 0) / arr.length;
+    const trendDiff  = halfAvg(recentHalf) - halfAvg(priorHalf);
+    const trend      =
+      trendDiff < -0.5 ? 'ESCALATING' :
+      trendDiff >  0.5 ? 'DE-ESCALATING' :
+                         'STABLE';
+
     return {
       totalEvents:      filteredEvents.length,
       totalSources,
@@ -133,6 +163,8 @@ export function useEventData(filters = {}) {
       avgGoldstein:     Math.round(avgGoldstein * 10) / 10,
       mostActiveActor,
       latestDate,
+      trend,
+      trendDiff:        Math.round(trendDiff * 10) / 10,
     };
   }, [filteredEvents]);
 

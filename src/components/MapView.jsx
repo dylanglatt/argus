@@ -12,7 +12,7 @@ import { EVENT_TYPES, MAP_CONFIG } from '../utils/constants';
  * Auto-fit: on first event load, the map flies to the bounding box of all
  * loaded events, giving an operationally honest initial view.
  */
-export function MapView({ events, onEventClick, selectedEventId }) {
+export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBrief }) {
   const mapRef          = useRef(null);
   const hasFitted       = useRef(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -246,7 +246,7 @@ export function MapView({ events, onEventClick, selectedEventId }) {
             anchor="bottom"
             offset={12}
           >
-            <PopupContent event={selectedEvent} />
+            <PopupContent event={selectedEvent} onOpenCountryBrief={onOpenCountryBrief} />
           </Popup>
         )}
       </Map>
@@ -381,7 +381,7 @@ export function MapView({ events, onEventClick, selectedEventId }) {
   );
 }
 
-function PopupContent({ event }) {
+function PopupContent({ event, onOpenCountryBrief }) {
   const eventType = EVENT_TYPES[event.type];
   const score     = event.impact_score ?? 0;
   const impactColor =
@@ -464,9 +464,9 @@ function PopupContent({ event }) {
         </div>
       )}
 
-      {/* Source link */}
-      {event.source_url && (
-        <div style={{ borderTop: '1px solid #1e1e30', paddingTop: '6px' }}>
+      {/* Footer: source link + country brief */}
+      <div style={{ borderTop: '1px solid #1e1e30', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {event.source_url ? (
           <a
             href={event.source_url}
             target="_blank"
@@ -484,8 +484,34 @@ function PopupContent({ event }) {
           >
             PRIMARY SOURCE →
           </a>
-        </div>
-      )}
+        ) : <span />}
+        {onOpenCountryBrief && event.location && (
+          <button
+            onClick={() => {
+              // Extract country from location string (last segment after comma, or full string)
+              const parts   = String(event.location).split(',');
+              const country = parts[parts.length - 1].trim();
+              onOpenCountryBrief(country);
+            }}
+            style={{
+              background:    'transparent',
+              border:        '1px solid #1e1e30',
+              padding:       '2px 7px',
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '9px',
+              fontWeight:    700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color:         '#6b7280',
+              cursor:        'pointer',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#e2e4e9'; e.currentTarget.style.borderColor = '#3a3a50'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#1e1e30'; }}
+          >
+            COUNTRY BRIEF
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -139,13 +139,28 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
 
       {/* Right stats */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-        <StatCell label="EVENTS"      value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#e2e4e9" />
+        <StatCell label="EVENTS"    value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#e2e4e9" />
         <Divider />
-        <StatCell label="SOURCES"     value={(stats?.totalSources ?? 0).toLocaleString()} valueColor="#10b981" />
+        <StatCell label="SOURCES"   value={(stats?.totalSources ?? 0).toLocaleString()} valueColor="#10b981" />
         <Divider />
-        <StatCell label="COUNTRIES"   value={stats?.countriesAffected ?? 0}              valueColor="#e2e4e9" />
+        <StatCell label="COUNTRIES" value={stats?.countriesAffected ?? 0}               valueColor="#e2e4e9" />
         <Divider />
-        <StatCell label="AVG TONE"    value={toneStr}                                    valueColor={toneColor} mono tooltip="Goldstein Scale avg. Negative = conflict pressure." />
+        <StatCell label="AVG TONE"  value={toneStr}                                     valueColor={toneColor} mono tooltip="Goldstein Scale avg. Negative = conflict pressure." />
+        <Divider />
+        <StatCell
+          label="TREND"
+          value={
+            stats?.trend === 'ESCALATING'    ? '↑ ESCALATING'    :
+            stats?.trend === 'DE-ESCALATING' ? '↓ DE-ESCALATING' :
+                                               '→ STABLE'
+          }
+          valueColor={
+            stats?.trend === 'ESCALATING'    ? '#ef4444' :
+            stats?.trend === 'DE-ESCALATING' ? '#10b981' :
+                                               '#eab308'
+          }
+          tooltip="Conflict trend: compares Goldstein avg of recent vs prior events."
+        />
         <Divider />
         <StatCell label="LAST REFRESH" value={refreshAge}                                valueColor="#6b7280" mono />
         <Divider />

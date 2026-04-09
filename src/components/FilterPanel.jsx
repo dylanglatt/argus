@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
 import { HotZones } from './HotZones';
 import { CountryBrief } from './CountryBrief';
+import { ActorPanel } from './ActorPanel';
 
 const LABEL_STYLE = {
   fontFamily:    'Inter, sans-serif',
@@ -365,6 +366,16 @@ export function FilterPanel({ filters, onFilterChange, availableCountries = [], 
 
         {/* Hot Zones — escalation detection */}
         <HotZones events={allEvents} onSelectCountry={onSelectCountry} />
+
+        {/* Separator */}
+        <div style={{ borderTop: '1px solid #1e1e30', marginBottom: '20px' }} />
+
+        {/* Actor Panel — top entities by event frequency */}
+        <ActorPanel
+          events={allEvents}
+          searchQuery={filters.searchQuery}
+          onSearch={(q) => onFilterChange({ ...filters, searchQuery: q })}
+        />
 
         {/* Reset */}
         <button

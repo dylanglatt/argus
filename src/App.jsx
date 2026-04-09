@@ -6,6 +6,7 @@ import { MapView } from './components/MapView';
 import { EventFeed } from './components/EventFeed';
 import { TimeChart } from './components/TimeChart';
 import { EventDetailPanel } from './components/EventDetailPanel';
+import { EscalationBanner } from './components/EscalationBanner';
 
 /**
  * App — single-viewport layout.
@@ -31,6 +32,7 @@ export default function App() {
     dateRange:   { start: null, end: null },
     impactMin:   0,
     searchQuery: '',
+    timeWindow:  'ALL',
   });
 
   const [selectedEvent,  setSelectedEvent]  = useState(null);
@@ -57,6 +59,9 @@ export default function App() {
       {/* Header — 52px */}
       <Header stats={stats} fetchedAt={fetchedAt} mapFocus={mapFocus} onToggleMapFocus={() => setMapFocus(f => !f)} />
 
+      {/* Escalation banner — only visible when regions are escalating */}
+      <EscalationBanner events={events} onSelectCountry={setBriefCountry} />
+
       {/* Main workspace */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
@@ -82,10 +87,17 @@ export default function App() {
             overflow: 'hidden',
             transition: 'flex 0.3s ease',
           }}>
+            {/* Time window toggle strip */}
+            <TimeWindowBar
+              value={filters.timeWindow}
+              onChange={(tw) => setFilters((f) => ({ ...f, timeWindow: tw }))}
+              eventCount={filteredEvents.length}
+            />
             <MapView
               events={filteredEvents}
               onEventClick={handleEventClick}
               selectedEventId={selectedEvent?.event_id_cnty}
+              onOpenCountryBrief={setBriefCountry}
             />
           </div>
 
@@ -111,6 +123,71 @@ export default function App() {
 
       {/* Status bar — 28px */}
       <StatusBar dataSource={dataSource} />
+    </div>
+  );
+}
+
+const TIME_WINDOWS = ['24H', '48H', '72H', 'ALL'];
+
+function TimeWindowBar({ value, onChange, eventCount }) {
+  return (
+    <div style={{
+      height:          '30px',
+      minHeight:       '30px',
+      background:      '#0a0a0f',
+      borderBottom:    '1px solid #1e1e30',
+      display:         'flex',
+      alignItems:      'center',
+      padding:         '0 12px',
+      gap:             '4px',
+      flexShrink:      0,
+    }}>
+      <span style={{
+        fontFamily:    'Inter, sans-serif',
+        fontSize:      '9px',
+        fontWeight:    700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color:         '#4a4a6a',
+        marginRight:   '8px',
+      }}>
+        WINDOW
+      </span>
+      {TIME_WINDOWS.map((tw) => {
+        const active = value === tw;
+        return (
+          <button
+            key={tw}
+            onClick={() => onChange(tw)}
+            style={{
+              background:    active ? '#1e1e30' : 'transparent',
+              border:        `1px solid ${active ? '#3b82f660' : '#1e1e30'}`,
+              borderRadius:  0,
+              padding:       '2px 10px',
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '9px',
+              fontWeight:    700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.07em',
+              color:         active ? '#e2e4e9' : '#4a4a6a',
+              cursor:        'pointer',
+              transition:    'all 0.12s',
+            }}
+            onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#9ca3af'; }}
+            onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = '#4a4a6a'; }}
+          >
+            {tw}
+          </button>
+        );
+      })}
+      <span style={{
+        marginLeft:  'auto',
+        fontFamily:  'JetBrains Mono, monospace',
+        fontSize:    '10px',
+        color:       '#4a4a6a',
+      }}>
+        {eventCount.toLocaleString()} events
+      </span>
     </div>
   );
 }

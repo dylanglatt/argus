@@ -66,6 +66,16 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
     }}>
       {/* Left: wordmark + live indicator + focus toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Argus eye+reticle icon */}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="22" height="22" style={{ flexShrink: 0 }}>
+          <line x1="100" y1="0"   x2="100" y2="200" stroke="#ffffff" strokeWidth="2.8"/>
+          <line x1="0"   y1="100" x2="200" y2="100" stroke="#ffffff" strokeWidth="2.8"/>
+          <circle cx="100" cy="100" r="82" fill="none" stroke="#ffffff" strokeWidth="3.5"/>
+          <path d="M 18,100 A 100,100 0 0,1 182,100" fill="none" stroke="#ffffff" strokeWidth="3.5"/>
+          <path d="M 182,100 A 100,100 0 0,1 18,100"  fill="none" stroke="#ffffff" strokeWidth="3.5"/>
+          <circle cx="100" cy="100" r="28" fill="none" stroke="#ffffff" strokeWidth="3.5"/>
+          <circle cx="100" cy="100" r="5.5" fill="#ffffff"/>
+        </svg>
         <span style={{
           fontFamily:    'Inter, sans-serif',
           fontSize:      '13px',

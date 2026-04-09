@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dylanglatt/argus/main/public/favicon.svg" width="90" height="90" alt="Argus"/>
+</p>
+
 # ARGUS — Global Conflict Event Tracker
 
 A dense, information-rich OSINT dashboard for tracking global conflict events in near real-time. Built with React, Mapbox GL, and Recharts — styled as a Palantir Gotham / Bloomberg Terminal-style operational analytics tool.

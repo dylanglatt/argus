@@ -4,6 +4,8 @@
 
 # ARGUS — Global Conflict Event Tracker
 
+**[Live Demo →](https://argusosint.vercel.app)**
+
 A dense, information-rich OSINT dashboard for tracking global conflict events in near real-time. Built with React, Mapbox GL, and Recharts — styled as a Palantir Gotham / Bloomberg Terminal-style operational analytics tool.
 
 Data is sourced from the **GDELT 2.0 Event Database** — a free, public dataset that updates every 15 minutes and covers conflict events worldwide using CAMEO event codes and the Goldstein Scale for severity scoring.

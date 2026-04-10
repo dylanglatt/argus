@@ -45,7 +45,7 @@ export default function App() {
 
   const {
     events, filteredEvents, availableCountries,
-    stats, dataSource, fetchedAt, dismissEvent, loading,
+    stats, dataSource, fetchedAt, dismissEvent, confirmEvent, loading,
   } = useEventData(filters);
 
   const handleEventClick = (event) => {
@@ -114,6 +114,8 @@ export default function App() {
               selectedEventId={selectedEvent?.event_id_cnty}
               onOpenCountryBrief={setBriefCountry}
               showThermal={showThermal}
+              onConfirm={confirmEvent}
+              onDismiss={(id) => dismissEvent(id)}
             />
           </div>
 
@@ -138,6 +140,8 @@ export default function App() {
               <EventDetailPanel
                 event={selectedEvent}
                 onClose={() => setSelectedEvent(null)}
+                onConfirm={confirmEvent}
+                onDismiss={(id) => { dismissEvent(id); setSelectedEvent(null); }}
               />
             </div>
           )}

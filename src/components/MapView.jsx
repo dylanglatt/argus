@@ -12,7 +12,7 @@ import { EVENT_TYPES, MAP_CONFIG } from '../utils/constants';
  * Auto-fit: on first event load, the map flies to the bounding box of all
  * loaded events, giving an operationally honest initial view.
  */
-export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBrief, showThermal }) {
+export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBrief, showThermal, onConfirm, onDismiss }) {
   const mapRef          = useRef(null);
   const hasFitted       = useRef(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -400,7 +400,13 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             anchor="bottom"
             offset={12}
           >
-            <PopupContent event={selectedEvent} onOpenCountryBrief={onOpenCountryBrief} />
+            <PopupContent
+              event={selectedEvent}
+              onOpenCountryBrief={onOpenCountryBrief}
+              onConfirm={onConfirm}
+              onDismiss={onDismiss}
+              onClose={() => { setSelectedEvent(null); setPopupCoords(null); }}
+            />
           </Popup>
         )}
       </Map>
@@ -535,7 +541,9 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
   );
 }
 
-function PopupContent({ event, onOpenCountryBrief }) {
+function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose }) {
+  const [feedback, setFeedback] = React.useState(null);
+  React.useEffect(() => { setFeedback(null); }, [event.id]);
   const eventType = EVENT_TYPES[event.type];
   const score     = event.impact_score ?? 0;
   const impactColor =
@@ -617,6 +625,107 @@ function PopupContent({ event, onOpenCountryBrief }) {
           </div>
         </div>
       )}
+
+      {/* Analyst feedback */}
+      <div style={{ borderTop: '1px solid #2f343c', paddingTop: '6px', marginBottom: '6px' }}>
+        {feedback ? (
+          <div style={{
+            display:      'flex',
+            alignItems:   'center',
+            gap:          '6px',
+            padding:      '5px 8px',
+            background:   feedback === 'confirmed' ? '#32a4670d' : '#e76a6e0d',
+            border:       `1px solid ${feedback === 'confirmed' ? '#32a46725' : '#e76a6e25'}`,
+            borderLeft:   `3px solid ${feedback === 'confirmed' ? '#32a467' : '#e76a6e'}`,
+            borderRadius: '2px',
+          }}>
+            <span style={{
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '9px',
+              fontWeight:    600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color:         feedback === 'confirmed' ? '#32a467' : '#e76a6e',
+            }}>
+              {feedback === 'confirmed' ? '✓ CONFIRMED' : '✕ MARKED AS NOISE'}
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              onClick={() => {
+                setFeedback('confirmed');
+                onConfirm?.(event.id);
+              }}
+              style={{
+                flex:          1,
+                display:       'flex',
+                alignItems:    'center',
+                justifyContent:'center',
+                gap:           '4px',
+                padding:       '4px 6px',
+                background:    '#32a4670d',
+                border:        '1px solid #32a46730',
+                borderRadius:  '2px',
+                cursor:        'pointer',
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '9px',
+                fontWeight:    600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color:         '#32a467',
+                transition:    'all 0.12s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background  = '#32a46720';
+                e.currentTarget.style.borderColor = '#32a46750';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background  = '#32a4670d';
+                e.currentTarget.style.borderColor = '#32a46730';
+              }}
+            >
+              <span>✓</span> CONFIRM VALID
+            </button>
+            <button
+              onClick={() => {
+                setFeedback('noise');
+                onDismiss?.(event.id);
+                setTimeout(() => onClose?.(), 500);
+              }}
+              style={{
+                flex:          1,
+                display:       'flex',
+                alignItems:    'center',
+                justifyContent:'center',
+                gap:           '4px',
+                padding:       '4px 6px',
+                background:    '#e76a6e0d',
+                border:        '1px solid #e76a6e30',
+                borderRadius:  '2px',
+                cursor:        'pointer',
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '9px',
+                fontWeight:    600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color:         '#e76a6e',
+                transition:    'all 0.12s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background  = '#e76a6e20';
+                e.currentTarget.style.borderColor = '#e76a6e50';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background  = '#e76a6e0d';
+                e.currentTarget.style.borderColor = '#e76a6e30';
+              }}
+            >
+              <span>✕</span> MARK AS NOISE
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Footer: source link + country brief */}
       <div style={{ borderTop: '1px solid #2f343c', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -6,12 +6,14 @@ import { EVENT_TYPES } from '../utils/constants';
  * Blueprint dark: elevatedBg (#252a31) surface, Blueprint intent colors.
  * Impact callout uses Blueprint's "callout" pattern (left-border tinted box).
  */
-export function EventDetailPanel({ event, onClose }) {
-  const [visible, setVisible] = useState(false);
+export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
+  const [visible,  setVisible]  = useState(false);
+  const [feedback, setFeedback] = useState(null); // null | 'confirmed' | 'noise'
 
   useEffect(() => {
     if (event) {
       requestAnimationFrame(() => setVisible(true));
+      setFeedback(null); // reset on new event
     } else {
       setVisible(false);
     }
@@ -274,6 +276,128 @@ export function EventDetailPanel({ event, onClose }) {
               {Number(event.latitude).toFixed(4)}° N &nbsp; {Number(event.longitude).toFixed(4)}° E
             </div>
           </>
+        )}
+
+        {/* Analyst Feedback */}
+        <SectionLabel>ANALYST ASSESSMENT</SectionLabel>
+        {feedback ? (
+          // Post-submission state — show which verdict was recorded
+          <div style={{
+            display:      'flex',
+            alignItems:   'center',
+            gap:          '8px',
+            marginBottom: '16px',
+            padding:      '8px 12px',
+            background:   feedback === 'confirmed' ? '#32a4670d' : '#e76a6e0d',
+            border:       `1px solid ${feedback === 'confirmed' ? '#32a46725' : '#e76a6e25'}`,
+            borderLeft:   `3px solid ${feedback === 'confirmed' ? '#32a467' : '#e76a6e'}`,
+            borderRadius: '2px',
+          }}>
+            <span style={{
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '9px',
+              fontWeight:    600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color:         feedback === 'confirmed' ? '#32a467' : '#e76a6e',
+            }}>
+              {feedback === 'confirmed' ? '✓ CONFIRMED AS VALID SIGNAL' : '✕ MARKED AS NOISE'}
+            </span>
+            <button
+              onClick={() => setFeedback(null)}
+              style={{
+                marginLeft:   'auto',
+                background:   'transparent',
+                border:       'none',
+                cursor:       'pointer',
+                fontFamily:   'Inter, sans-serif',
+                fontSize:     '9px',
+                color:        '#5f6b7c',
+                padding:      '0',
+                letterSpacing: '0.04em',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#abb3bf')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#5f6b7c')}
+            >
+              UNDO
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+            {/* CONFIRM button */}
+            <button
+              onClick={() => {
+                setFeedback('confirmed');
+                onConfirm?.(event.event_id_cnty);
+              }}
+              style={{
+                flex:          1,
+                display:       'flex',
+                alignItems:    'center',
+                justifyContent:'center',
+                gap:           '5px',
+                padding:       '7px 10px',
+                background:    '#32a4670d',
+                border:        '1px solid #32a46730',
+                borderRadius:  '2px',
+                cursor:        'pointer',
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '9px',
+                fontWeight:    600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color:         '#32a467',
+                transition:    'all 0.12s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background   = '#32a46720';
+                e.currentTarget.style.borderColor  = '#32a46750';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background   = '#32a4670d';
+                e.currentTarget.style.borderColor  = '#32a46730';
+              }}
+            >
+              <span>✓</span> CONFIRM VALID
+            </button>
+            {/* NOISE button */}
+            <button
+              onClick={() => {
+                setFeedback('noise');
+                onDismiss?.(event.event_id_cnty);
+                setTimeout(onClose, 600); // brief pause so user sees the state change
+              }}
+              style={{
+                flex:          1,
+                display:       'flex',
+                alignItems:    'center',
+                justifyContent:'center',
+                gap:           '5px',
+                padding:       '7px 10px',
+                background:    '#e76a6e0d',
+                border:        '1px solid #e76a6e30',
+                borderRadius:  '2px',
+                cursor:        'pointer',
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '9px',
+                fontWeight:    600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color:         '#e76a6e',
+                transition:    'all 0.12s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background   = '#e76a6e20';
+                e.currentTarget.style.borderColor  = '#e76a6e50';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background   = '#e76a6e0d';
+                e.currentTarget.style.borderColor  = '#e76a6e30';
+              }}
+            >
+              <span>✕</span> MARK AS NOISE
+            </button>
+          </div>
         )}
 
         {/* Source link — Blueprint "intent" button style */}

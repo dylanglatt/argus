@@ -21,8 +21,9 @@ import { fileURLToPath } from 'url';
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = path.join(__dirname, 'dismissed_events.json');
 
-// In-memory set — populated from disk on module load
-let dismissedIds = new Set();
+// In-memory sets — populated from disk on module load
+let dismissedIds  = new Set();
+let confirmedIds  = new Set();
 
 // ---------------------------------------------------------------------------
 // Load from disk on startup
@@ -32,20 +33,25 @@ function loadStore() {
     if (fs.existsSync(STORE_PATH)) {
       const raw  = fs.readFileSync(STORE_PATH, 'utf8');
       const data = JSON.parse(raw);
-      dismissedIds = new Set((data.dismissed || []).map(String));
-      console.log(`[feedback] Loaded ${dismissedIds.size} dismissed event(s) from disk`);
+      dismissedIds = new Set((data.dismissed  || []).map(String));
+      confirmedIds = new Set((data.confirmed  || []).map(String));
+      console.log(`[feedback] Loaded ${dismissedIds.size} dismissed / ${confirmedIds.size} confirmed event(s) from disk`);
     }
   } catch (err) {
     console.warn('[feedback] Failed to load dismissed_events.json:', err.message);
     dismissedIds = new Set();
+    confirmedIds = new Set();
   }
 }
 
 function persistStore() {
+  // Note: on Vercel (read-only filesystem), writes will fail silently.
+  // Feedback is optimistically applied in the UI within the session;
+  // durable persistence would require moving this to Vercel Blob/KV.
   try {
     fs.writeFileSync(
       STORE_PATH,
-      JSON.stringify({ dismissed: [...dismissedIds] }, null, 2),
+      JSON.stringify({ dismissed: [...dismissedIds], confirmed: [...confirmedIds] }, null, 2),
       'utf8'
     );
   } catch (err) {
@@ -62,9 +68,11 @@ loadStore();
 
 /** Mark an event as analyst-dismissed noise. Persists to disk. */
 export function dismissEvent(eventId) {
-  dismissedIds.add(String(eventId));
+  const id = String(eventId);
+  dismissedIds.add(id);
+  confirmedIds.delete(id);   // can't be both
   persistStore();
-  console.log(`[feedback] Dismissed event ${eventId} (total dismissed: ${dismissedIds.size})`);
+  console.log(`[feedback] Dismissed event ${id} (total dismissed: ${dismissedIds.size})`);
 }
 
 /** Undo a dismissal (analyst corrections). Persists to disk. */
@@ -74,15 +82,28 @@ export function undismissEvent(eventId) {
   console.log(`[feedback] Restored event ${eventId} (total dismissed: ${dismissedIds.size})`);
 }
 
-/** Fast lookup used in filtering. */
-export function isDismissed(eventId) {
-  return dismissedIds.has(String(eventId));
+/** Mark an event as analyst-confirmed valid signal. Persists to disk. */
+export function confirmEvent(eventId) {
+  const id = String(eventId);
+  confirmedIds.add(id);
+  dismissedIds.delete(id);   // can't be both
+  persistStore();
+  console.log(`[feedback] Confirmed event ${id} (total confirmed: ${confirmedIds.size})`);
 }
 
-/** Return all dismissed IDs (used by the frontend to sync state). */
-export function getDismissedIds() {
-  return [...dismissedIds];
+/** Undo a confirmation. Persists to disk. */
+export function unconfirmEvent(eventId) {
+  confirmedIds.delete(String(eventId));
+  persistStore();
 }
+
+/** Fast lookups used in filtering / response. */
+export function isDismissed(eventId)  { return dismissedIds.has(String(eventId)); }
+export function isConfirmed(eventId)  { return confirmedIds.has(String(eventId)); }
+
+/** Return all dismissed IDs (used by the frontend to sync state). */
+export function getDismissedIds() { return [...dismissedIds]; }
+export function getConfirmedIds() { return [...confirmedIds]; }
 
 /** Remove dismissed events from an array. Used in /api/events. */
 export function filterDismissed(events) {

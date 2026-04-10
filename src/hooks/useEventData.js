@@ -21,6 +21,7 @@ export function useEventData(filters = {}) {
   const [dataSource, setDataSource] = useState('gdelt');
   const [fetchedAt, setFetchedAt]   = useState(null); // Unix ms of last GDELT cache fill
   const [dismissedIds, setDismissedIds] = useState(new Set()); // Analyst-dismissed event IDs
+  const [confirmedIds, setConfirmedIds] = useState(new Set()); // Analyst-confirmed event IDs
 
   const {
     eventTypes  = [],
@@ -43,7 +44,8 @@ export function useEventData(filters = {}) {
         setEvents(loadedEvents);
         setDataSource(json.source || 'gdelt');
         setFetchedAt(json.fetchedAt || null);
-        setDismissedIds(new Set((json.dismissedIds || []).map(String)));
+        setDismissedIds(new Set((json.dismissedIds  || []).map(String)));
+        setConfirmedIds(new Set((json.confirmedIds  || []).map(String)));
         setError(null);
 
         // Batch corroboration for eligible events (Explosions/Remote violence, Battles)
@@ -205,19 +207,31 @@ export function useEventData(filters = {}) {
   }, [filteredEvents]);
 
   // ---------------------------------------------------------------------------
-  // Analyst feedback: dismiss an event as noise.
-  // Optimistically removes it from local state, then notifies the backend.
+  // Analyst feedback: dismiss an event as noise, or confirm as valid signal.
+  // Both are optimistic — UI updates immediately, then backend is notified.
   // ---------------------------------------------------------------------------
   const dismissEvent = useCallback(async (eventId) => {
     const id = String(eventId);
-    // Optimistic update — remove immediately from UI
     setDismissedIds((prev) => new Set([...prev, id]));
+    setConfirmedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
     setEvents((prev) => prev.filter((e) => String(e.event_id_cnty) !== id));
 
     try {
       await fetch(`/api/events/${id}/dismiss`, { method: 'POST' });
     } catch (err) {
       console.warn('[useEventData] dismiss failed:', err.message);
+    }
+  }, []);
+
+  const confirmEvent = useCallback(async (eventId) => {
+    const id = String(eventId);
+    setConfirmedIds((prev) => new Set([...prev, id]));
+    setDismissedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+
+    try {
+      await fetch(`/api/events/${id}/confirm`, { method: 'POST' });
+    } catch (err) {
+      console.warn('[useEventData] confirm failed:', err.message);
     }
   }, []);
 
@@ -230,7 +244,9 @@ export function useEventData(filters = {}) {
     dataSource,
     fetchedAt,
     dismissedIds,
+    confirmedIds,
     dismissEvent,
+    confirmEvent,
     stats,
   };
 }

@@ -471,6 +471,9 @@ const REJECT_DOMAINS = new Set([
   'timberjay.com',
   'thegrayzone.com',
   'mintpressnews.com',
+  // Local Kansas general-interest paper — no conflict reporting; GDELT misclassifies
+  // historical retrospectives (cavalry, battles) as kinetic events via military NLP
+  'hayspost.com',
 ]);
 
 function rejectByUrl(sourceUrl) {
@@ -707,8 +710,15 @@ function normalizeRow(cols, hourBucket = 0) {
 
   const subType = CAMEO_DESC[eventCode] || CAMEO_DESC[String(eventCode).slice(0, 3)] || eventType;
 
-  // impact_score: invert Goldstein so more-negative = higher score (0–10)
-  const impact_score = Math.max(0, Math.min(10, Math.round(-goldstein)));
+  // impact_score: composite of Goldstein severity, mention reach, and source volume
+  const goldsteinComponent  = Math.max(0, Math.min(10, (-goldstein / 10) * 10));
+  const mentionsComponent   = Math.min(10, Math.log2(numMentions + 1) / Math.log2(500) * 10);
+  const sourcesComponent    = Math.min(10, Math.log2(numSources + 1)  / Math.log2(50)  * 10);
+  const impact_score = Math.round(
+    goldsteinComponent * 0.60 +
+    mentionsComponent  * 0.25 +
+    sourcesComponent   * 0.15
+  );
 
   return {
     event_id_cnty:   String(cols[C.GLOBALEVENTID]),

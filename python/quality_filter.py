@@ -2,12 +2,13 @@
 """
 quality_filter.py
 -----------------
-Three-stage data quality pipeline for Argus conflict events.
+Four-stage data quality pipeline for Argus conflict events.
 
-Addresses the three primary GDELT noise vectors:
+Addresses the four primary GDELT noise vectors:
   1. Geographic misplacements — events whose lat/lon don't match their reported country
   2. Irrelevant topics        — events that score low on conflict-relevance signals
-  3. Duplicate clusters       — multiple records of the same real-world incident
+  3. Internal incoherence     — events whose fields contradict each other
+  4. Duplicate clusters       — multiple records of the same real-world incident
 
 Operates on the live GDELT cache (server/cache/events.json) or any file
 conforming to the Argus event schema. Stdlib only — no external dependencies.
@@ -153,6 +154,15 @@ URL_PENALTIES: list[tuple[str, int]] = [
     # Financial / business (not sanctions/war)
     ("-earnings-", 35), ("-ipo-", 35), ("-crypto-", 30), ("-stocks-", 30),
     ("trade-deal", 25), ("trade-agreement", 25),
+    # Domestic crime (strong signal this is not a foreign military event)
+    ("-homicide-", 40), ("-murder-", 40), ("-stabbing-", 40),
+    ("-shooting-victim", 35), ("-car-crash-", 35), ("-drunk-driver", 35),
+    # Domestic politics miscoded as foreign action
+    ("trump-blames", 40), ("biden-blames", 40), ("-executive-order-", 25),
+    ("department-of-homeland", 40),
+    # Immigration / border politics (frequently miscoded as foreign military)
+    ("deportation", 40), ("illegal-immigrant", 45), ("-migrant-", 30),
+    ("border-polic", 35), ("ice-arrest", 40), ("haitian-", 30),
     # Natural disasters (not military events)
     ("hurricane-", 25), ("tornado-", 25), ("earthquake-", 25),
     # Opinion / editorial
@@ -276,6 +286,16 @@ def stage_geo(
             rejected.append({**event, "_geo_flag": "null_island"})
             continue
 
+        # Country centroid guard — GDELT falls back to round-number coordinates
+        # (the country centroid) when it knows the country but can't resolve a
+        # specific location. These are never real event coordinates.
+        # Only apply when ActionGeo_Type == 1 (country-level) or absent.
+        if lat == float(int(lat)) and lon == float(int(lon)):
+            geo_type = event.get("action_geo_type")
+            if geo_type is None or geo_type == 1 or geo_type == "1":
+                rejected.append({**event, "_geo_flag": "country_centroid"})
+                continue
+
         country = event.get("country", "")
         bounds  = COUNTRY_BOUNDS.get(country)
 
@@ -328,6 +348,81 @@ def stage_relevance(
             valid.append(annotated)
         else:
             rejected.append(annotated)
+
+    return valid, rejected
+
+
+# US local news domains — used by coherence check C
+US_LOCAL_DOMAINS = frozenset({
+    "turnto10.com", "abc7.com", "abc7news.com", "fox5.com", "fox5dc.com",
+    "nbcwashington.com", "cbsnews.com", "myfoxny.com", "wsbtv.com",
+    "wral.com", "komo4.com", "kiro7.com", "kxan.com", "wbaltv.com",
+    "wgal.com", "wpxi.com", "wtae.com", "wjla.com", "wfmz.com",
+    "nbc12.com", "wtvr.com", "wric.com", "13newsnow.com", "whsv.com",
+})
+
+# CAMEO sub-event descriptions that indicate kinetic action
+_KINETIC_SUB_EVENTS = frozenset({
+    "FIGHT", "ASSAULT", "USE CONVENTIONAL MILITARY FORCE",
+    "USE UNCONVENTIONAL MASS VIOLENCE", "ENGAGE IN COMBAT",
+})
+
+
+def stage_coherence(
+    events: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    """
+    Stage 3 — Internal consistency checks.
+
+    Flags events where GDELT's structured fields contradict each other in ways
+    that indicate misclassification rather than a genuine kinetic event.
+
+    Three checks:
+      A. High severity (Goldstein ≤ -8) with no named actors on either side
+      B. Kinetic CAMEO code but no armed actor types and low source count
+      C. US local news domain reporting a non-US foreign military event
+    """
+    valid, rejected = [], []
+
+    for event in events:
+        # CHECK A — Unknown actor + extreme severity contradiction
+        gs = float(event.get("goldstein_scale") or 0)
+        a1 = (event.get("actor1") or "").strip()
+        a2 = (event.get("actor2") or "").strip()
+        unknown_names = {"Unknown", "", "Unknown Forces"}
+        if gs <= -8.0 and a1 in unknown_names and a2 in unknown_names:
+            rejected.append({**event, "_coherence_flag": "high_severity_unknown_actors"})
+            continue
+
+        # CHECK B — Kinetic CAMEO code without armed actor types
+        sub_event = (event.get("sub_event_type") or "").strip().upper()
+        if sub_event:
+            is_kinetic_code = any(k in sub_event for k in _KINETIC_SUB_EVENTS)
+            if is_kinetic_code:
+                a1t = (event.get("actor1_type") or "").upper()
+                a2t = (event.get("actor2_type") or "").upper()
+                has_armed = a1t in ARMED_ACTOR_TYPES or a2t in ARMED_ACTOR_TYPES
+                nsrc = int(event.get("num_sources") or 1)
+                if not has_armed and nsrc <= 3:
+                    rejected.append({**event, "_coherence_flag": "kinetic_code_no_armed_actors"})
+                    continue
+
+        # CHECK C — US local news domain reporting a non-US foreign event
+        source_url = (event.get("source_url") or "")
+        country = (event.get("country") or "").strip()
+        if source_url and country not in ("United States", "Unknown", ""):
+            # Extract domain: "https://www.abc7.com/path" → "abc7.com"
+            parts = source_url.split("/")
+            if len(parts) >= 3:
+                host = parts[2].lower()
+                # Strip leading "www."
+                if host.startswith("www."):
+                    host = host[4:]
+                if host in US_LOCAL_DOMAINS:
+                    rejected.append({**event, "_coherence_flag": "us_local_source_foreign_event"})
+                    continue
+
+        valid.append(event)
 
     return valid, rejected
 
@@ -405,13 +500,14 @@ def run_pipeline(
     window_days: int   = DEDUP_WINDOW_DAYS,
 ) -> dict:
     """
-    Run all three filter stages in sequence and return:
+    Run all four filter stages in sequence and return:
       {
         "events":   list[dict],   # cleaned, annotated records
         "stats":    dict,         # per-stage counts and rejection rates
         "rejected": {
           "geo":        list[dict],
           "relevance":  list[dict],
+          "coherence":  list[dict],
           "duplicates": list[dict],
         }
       }
@@ -422,7 +518,8 @@ def run_pipeline(
 
     after_geo,   rej_geo   = stage_geo(events, tolerance=geo_tol)
     after_rel,   rej_rel   = stage_relevance(after_geo, min_score=rel_min)
-    after_dedup, rej_dedup = stage_dedup(after_rel, grid_size=grid_size, window_days=window_days)
+    after_coh,   rej_coh   = stage_coherence(after_rel)
+    after_dedup, rej_dedup = stage_dedup(after_coh, grid_size=grid_size, window_days=window_days)
 
     n_out = len(after_dedup)
 
@@ -430,10 +527,12 @@ def run_pipeline(
         "input_count":              n_input,
         "geo_rejected":             len(rej_geo),
         "relevance_rejected":       len(rej_rel),
+        "coherence_rejected":       len(rej_coh),
         "duplicates_removed":       len(rej_dedup),
         "output_count":             n_out,
         "geo_rejection_pct":        _pct(len(rej_geo),   n_input),
         "relevance_rejection_pct":  _pct(len(rej_rel),   n_input),
+        "coherence_rejection_pct":  _pct(len(rej_coh),   n_input),
         "dedup_compression_pct":    _pct(len(rej_dedup), n_input),
         "overall_rejection_pct":    _pct(n_input - n_out, n_input),
         "output_pct":               _pct(n_out, n_input),
@@ -451,6 +550,7 @@ def run_pipeline(
         "rejected": {
             "geo":        rej_geo,
             "relevance":  rej_rel,
+            "coherence":  rej_coh,
             "duplicates": rej_dedup,
         },
     }
@@ -471,7 +571,8 @@ def _print_stats(stats: dict) -> None:
     print(f"  Input events:          {stats['input_count']:>6,}")
     print(f"  Stage 1 geo reject:    {stats['geo_rejected']:>6,}  ({stats['geo_rejection_pct']})")
     print(f"  Stage 2 rel reject:    {stats['relevance_rejected']:>6,}  ({stats['relevance_rejection_pct']})")
-    print(f"  Stage 3 dedup drop:    {stats['duplicates_removed']:>6,}  ({stats['dedup_compression_pct']})")
+    print(f"  Stage 3 coh reject:    {stats['coherence_rejected']:>6,}  ({stats['coherence_rejection_pct']})")
+    print(f"  Stage 4 dedup drop:    {stats['duplicates_removed']:>6,}  ({stats['dedup_compression_pct']})")
     print("─" * w)
     print(f"  Output events:         {stats['output_count']:>6,}  ({stats['output_pct']} retained)")
     print()
@@ -485,7 +586,7 @@ def _print_samples(title: str, events: list[dict]) -> None:
         date    = e.get("event_date", "?")
         country = e.get("country", "?")
         etype   = (e.get("event_type") or "")[:32]
-        flag    = e.get("_geo_flag", "")
+        flag    = e.get("_geo_flag", "") or e.get("_coherence_flag", "")
         score   = e.get("_relevance_score")
         cluster = e.get("_dedup_cluster", "")
         if flag:
@@ -579,6 +680,7 @@ def main() -> None:
     if args.verbose:
         _print_samples("Geographic misplacements (sample)", result["rejected"]["geo"][:5])
         _print_samples("Low-relevance events (sample)",     result["rejected"]["relevance"][:5])
+        _print_samples("Coherence failures (sample)",       result["rejected"]["coherence"][:5])
         _print_samples("Duplicate clusters (sample)",       result["rejected"]["duplicates"][:5])
 
     if args.dry_run:

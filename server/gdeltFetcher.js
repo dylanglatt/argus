@@ -121,6 +121,7 @@ const C = {
   NumSources:          32,
   NumArticles:         33,
   AvgTone:             34,
+  ActionGeo_Type:      51,
   ActionGeo_FullName:  52,
   ActionGeo_Country:   53,
   ActionGeo_ADM1:      54,
@@ -733,6 +734,7 @@ function normalizeRow(cols, hourBucket = 0) {
     country,
     admin1,
     location,
+    action_geo_type: parseInt(cols[C.ActionGeo_Type], 10) || 0,
     latitude:        lat,
     longitude:       lng,
     impact_score,                   // 0–10 conflict severity proxy

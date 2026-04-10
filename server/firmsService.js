@@ -12,6 +12,56 @@
  */
 
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ---------------------------------------------------------------------------
+// Conflict zone index — built from POLECAT historical data by
+// python/build_conflict_index.py. Filters FIRMS detections so only thermal
+// anomalies that fall in historically documented conflict areas count as
+// corroboration. Suppresses agricultural burns, gas flares, and industrial
+// fires in conflict-adjacent regions.
+//
+// Index schema: { grid_size_deg, min_events, cell_count, cells: {"lat,lon": N} }
+// If the file doesn't exist (index not yet built), FIRMS falls back to the
+// original unfiltered behavior so the feature degrades gracefully.
+// ---------------------------------------------------------------------------
+let conflictZoneIndex = null;
+
+function loadConflictZoneIndex() {
+  const indexPath = path.join(__dirname, '../data/processed/conflict_zone_index.json');
+  try {
+    if (!fs.existsSync(indexPath)) {
+      console.warn('[firms] No conflict zone index found — run python3 python/build_conflict_index.py to enable historical filtering');
+      return;
+    }
+    const raw  = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    conflictZoneIndex = raw;
+    console.log(`[firms] Conflict zone index loaded — ${raw.cell_count.toLocaleString()} cells, ${raw.grid_size_deg}° grid`);
+  } catch (err) {
+    console.warn('[firms] Failed to load conflict zone index:', err.message);
+  }
+}
+
+// Load once at module initialisation (synchronous, file is small — < 500 KB)
+loadConflictZoneIndex();
+
+/**
+ * Returns true if the given lat/lon falls within a historically documented
+ * conflict zone cell. If no index is loaded, always returns true (no filter).
+ */
+function isConflictZone(lat, lon) {
+  if (!conflictZoneIndex) return true;   // Graceful degradation
+  const g = conflictZoneIndex.grid_size_deg;
+  const snappedLat = Math.floor(lat / g) * g;
+  const snappedLon = Math.floor(lon / g) * g;
+  // Round to 4 decimal places to match Python key format
+  const key = `${Math.round(snappedLat * 10000) / 10000},${Math.round(snappedLon * 10000) / 10000}`;
+  return key in conflictZoneIndex.cells;
+}
 
 // ---------------------------------------------------------------------------
 // Cache — 1 hour TTL (FIRMS updates every ~60 minutes)
@@ -186,6 +236,10 @@ export async function corroborateEvent(lat, lon, dateStr) {
     const acqTime = new Date(d.acq_date + 'T' + (d.acq_time || '0000').padStart(4, '0').slice(0, 2) + ':' + (d.acq_time || '0000').padStart(4, '0').slice(2) + ':00Z').getTime();
     if (isNaN(acqTime) || Math.abs(acqTime - eventTime) > windowMs) continue;
 
+    // Conflict zone check — skip detections in historically quiet areas
+    // (agricultural burns, gas flares, industrial fires near frontlines)
+    if (!isConflictZone(d.latitude, d.longitude)) continue;
+
     detections++;
     if (d.frp > maxFRP) maxFRP = d.frp;
     if (dist < nearestKm) nearestKm = dist;
@@ -235,6 +289,9 @@ export async function corroborateBatch(events) {
 
       const acqTime = new Date(d.acq_date + 'T' + (d.acq_time || '0000').padStart(4, '0').slice(0, 2) + ':' + (d.acq_time || '0000').padStart(4, '0').slice(2) + ':00Z').getTime();
       if (isNaN(acqTime) || Math.abs(acqTime - eventTime) > windowMs) continue;
+
+      // Conflict zone check — skip detections in historically quiet areas
+      if (!isConflictZone(d.latitude, d.longitude)) continue;
 
       detections++;
       if (d.frp > maxFRP) maxFRP = d.frp;

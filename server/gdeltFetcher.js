@@ -34,7 +34,73 @@
 import http from 'http';
 import https from 'https';
 import zlib from 'zlib';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { applyHaikuFilter } from './haikuFilter.js';
+
+// ---------------------------------------------------------------------------
+// Disk cache — persists filtered events across server restarts so cold starts
+// load in milliseconds instead of re-downloading + re-running Haiku each time.
+//
+// Layout:
+//   server/cache/events.json   — array of normalized, Haiku-filtered events
+//   server/cache/meta.json     — { fetchedAt: ms, eventCount: n }
+//
+// Strategy:
+//   1. On startup: if disk cache is < DISK_TTL_MS old, load it and skip fetch
+//   2. On fetch: if disk cache exists, only download GDELT files newer than
+//      the last cache write (incremental), run Haiku on new events only,
+//      merge with existing, prune events older than MAX_AGE_DAYS.
+//   3. After every successful full or incremental fetch: write to disk.
+// ---------------------------------------------------------------------------
+const __dirname    = path.dirname(fileURLToPath(import.meta.url));
+const CACHE_DIR    = path.join(__dirname, 'cache');
+const EVENTS_FILE  = path.join(CACHE_DIR, 'events.json');
+const META_FILE    = path.join(CACHE_DIR, 'meta.json');
+const DISK_TTL_MS  = 15 * 60 * 1000;   // 15 min — matches GDELT publish cadence
+const MAX_AGE_DAYS = 7;                 // Prune events older than this
+
+function ensureCacheDir() {
+  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
+function loadFromDisk() {
+  try {
+    if (!fs.existsSync(META_FILE) || !fs.existsSync(EVENTS_FILE)) return null;
+    const meta   = JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
+    const age    = Date.now() - meta.fetchedAt;
+    if (age > DISK_TTL_MS) return null;   // Stale — caller will re-fetch
+    const events = JSON.parse(fs.readFileSync(EVENTS_FILE, 'utf8'));
+    console.log(`[gdelt] Disk cache hit — ${events.length} events (age ${Math.round(age / 1000)}s)`);
+    return { events, fetchedAt: meta.fetchedAt };
+  } catch (err) {
+    console.warn('[gdelt] Disk cache read failed:', err.message);
+    return null;
+  }
+}
+
+function saveToDisk(events, fetchedAt) {
+  try {
+    ensureCacheDir();
+    fs.writeFileSync(EVENTS_FILE, JSON.stringify(events));
+    fs.writeFileSync(META_FILE,   JSON.stringify({ fetchedAt, eventCount: events.length }));
+    console.log(`[gdelt] Disk cache written — ${events.length} events`);
+  } catch (err) {
+    console.warn('[gdelt] Disk cache write failed:', err.message);
+  }
+}
+
+// Read the fetchedAt from disk without loading the full events array.
+// Used to determine the incremental fetch window.
+function readDiskMeta() {
+  try {
+    if (!fs.existsSync(META_FILE)) return null;
+    return JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
+  } catch {
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // GDELT column indices (0-indexed, GDELT 2.0 export format)
@@ -425,13 +491,24 @@ function normalizeRow(cols, hourBucket = 0) {
   const eventType = mapEventType(cols[C.EventRootCode], eventCode);
   if (!eventType) return null;
 
-  // Require at least 2 distinct source outlets.
-  // Single-source events are overwhelmingly domestic noise that GDELT has
-  // misclassified — real geopolitical conflict gets picked up by 2+ outlets.
-  // (Previously 3, but that was too aggressive for underreported regions like
-  // Sahel, Myanmar, and DRC where legitimate events may have limited coverage.)
+  // Require at least 2 distinct source outlets for standard events.
+  // Exception: extreme Goldstein (≤ -7) events with armed actors and a valid
+  // KINETIC CAMEO code are allowed through with a single source. These represent
+  // the most severe conflict events (mass violence, sieges, major attacks) in
+  // chronically underreported conflict zones (Sahel, Myanmar, DRC, Yemen) where
+  // a single wire report is often the only coverage for days. The downstream
+  // Haiku filter provides the final quality gate for these single-source events.
   const numSources  = parseInt(cols[C.NumSources], 10) || 0;
-  if (numSources < 2) return null;
+  const goldsteinForSourceCheck = parseFloat(cols[C.GoldsteinScale]) || 0;
+  const a1TypeForSourceCheck    = String(cols[C.Actor1Type1Code] || '').trim().toUpperCase();
+  const a2TypeForSourceCheck    = String(cols[C.Actor2Type1Code] || '').trim().toUpperCase();
+  const ARMED_FOR_SOURCE_CHECK  = new Set(['MIL', 'REB', 'SPY', 'UAF', 'GOV', 'IGO']);
+  const hasArmedForSource =
+    ARMED_FOR_SOURCE_CHECK.has(a1TypeForSourceCheck) ||
+    ARMED_FOR_SOURCE_CHECK.has(a2TypeForSourceCheck);
+  const isExtremeKinetic = goldsteinForSourceCheck <= -7 && hasArmedForSource;
+  if (numSources < 1) return null;                         // Always require at least 1 source
+  if (numSources < 2 && !isExtremeKinetic) return null;   // Extreme kinetic events: allow single-source
 
   const numMentions = parseInt(cols[C.NumMentions], 10) || 0;
 
@@ -672,67 +749,116 @@ export function getCacheFetchedAt() {
 export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 1000 } = {}) {
   const now = Date.now();
 
+  // 1. In-memory cache hit (fastest path — no disk I/O)
   if (cache.events && cache.fetchedAt && now - cache.fetchedAt < cache.ttlMs) {
-    console.log(`[gdelt] Cache hit — ${cache.events.length} events`);
+    console.log(`[gdelt] Memory cache hit — ${cache.events.length} events`);
     return cache.events.slice(0, limit);
   }
 
-  // If a fetch is already in progress, wait for it instead of launching another
+  // 2. Stale-while-revalidate: if a background fetch is already running and we
+  //    have ANY events in memory (even stale), return them immediately rather than
+  //    blocking the caller for the full Haiku pass duration. The background refresh
+  //    will update the cache when it completes — next request gets fresh data.
   if (fetchInFlight) {
-    console.log('[gdelt] Fetch already in progress — waiting for result...');
+    if (cache.events && cache.events.length > 0) {
+      console.log(`[gdelt] Refresh in progress — serving stale cache (${cache.events.length} events)`);
+      return cache.events.slice(0, limit);
+    }
+    console.log('[gdelt] Fetch in progress, no stale data — waiting for result...');
     await fetchInFlight;
     return (cache.events || []).slice(0, limit);
   }
 
-  console.log(`[gdelt] Cache miss — fetching GDELT files (last ${days} days @ ${stepHours}h intervals)`);
+  // 3. Disk cache hit — load persisted events, skip all downloading + Haiku
+  const disk = loadFromDisk();
+  if (disk) {
+    cache.events    = disk.events;
+    cache.fetchedAt = disk.fetchedAt;
+    return disk.events.slice(0, limit);
+  }
 
-  // Set the in-flight guard — cleared in finally block regardless of outcome
+  // 4. Full or incremental fetch required
   let resolveFlight;
   fetchInFlight = new Promise((r) => { resolveFlight = r; });
 
   try {
-    const urls = buildFileUrls(days, stepHours);
-    console.log(`[gdelt] Downloading ${urls.length} files in parallel...`);
+    // Check if we have a stale disk cache we can use as a base for incremental fetch.
+    // If the last write was within MAX_AGE_DAYS, we only need to download new files.
+    const diskMeta       = readDiskMeta();
+    const lastFetchedAt  = diskMeta?.fetchedAt ?? 0;
+    const cacheAgeMs     = now - lastFetchedAt;
+    const useIncremental = lastFetchedAt > 0 && cacheAgeMs < MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 
-    // Download in batches of 8 to avoid hammering GDELT servers
+    let existingEvents = [];
+
+    if (useIncremental) {
+      // Load existing events from disk to merge with new ones
+      try {
+        existingEvents = JSON.parse(fs.readFileSync(EVENTS_FILE, 'utf8'));
+        console.log(`[gdelt] Incremental fetch — ${existingEvents.length} existing events, adding files since ${new Date(lastFetchedAt).toISOString()}`);
+      } catch {
+        console.warn('[gdelt] Could not read existing events for incremental fetch — falling back to full fetch');
+        existingEvents = [];
+      }
+    }
+
+    // Build URL list: incremental = only files since last cache write; full = all days
+    const hoursToFetch = useIncremental
+      ? Math.ceil(cacheAgeMs / (60 * 60 * 1000)) + stepHours  // +1 step for overlap safety
+      : days * 24;
+    const fetchDays = Math.ceil(hoursToFetch / 24);
+
+    const urls = buildFileUrls(Math.min(fetchDays, days), stepHours);
+    console.log(`[gdelt] Downloading ${urls.length} file(s) (${useIncremental ? 'incremental' : 'full'})...`);
+
     const BATCH = 8;
-    const allEvents = [];
+    const newRawEvents = [];
     for (let i = 0; i < urls.length; i += BATCH) {
       const batch   = urls.slice(i, i + BATCH);
       const results = await Promise.all(batch.map(downloadAndParse));
-      results.forEach((evts) => allEvents.push(...evts));
-      console.log(`[gdelt] Batch ${Math.ceil(i / BATCH) + 1}/${Math.ceil(urls.length / BATCH)} done — running total: ${allEvents.length}`);
+      results.forEach((evts) => newRawEvents.push(...evts));
+      console.log(`[gdelt] Batch ${Math.ceil(i / BATCH) + 1}/${Math.ceil(urls.length / BATCH)} done — ${newRawEvents.length} new raw events`);
     }
 
-    // Deduplicate by event ID
-    const seen = new Set();
-    const deduped = allEvents.filter((e) => {
+    // Deduplicate new events against existing IDs
+    const existingIds = new Set(existingEvents.map((e) => e.event_id_cnty));
+    const seen        = new Set(existingIds);
+    const newUnique   = newRawEvents.filter((e) => {
       if (seen.has(e.event_id_cnty)) return false;
       seen.add(e.event_id_cnty);
       return true;
     });
 
-    // Sort by date descending, then by num_mentions descending
-    deduped.sort((a, b) => {
+    console.log(`[gdelt] ${newUnique.length} genuinely new events — running Haiku filter...`);
+
+    // Haiku only runs on the new events — existing events were already filtered
+    const newFiltered = newUnique.length > 0 ? await applyHaikuFilter(newUnique) : [];
+    console.log(`[gdelt] ${newFiltered.length} new events passed Haiku (removed ${newUnique.length - newFiltered.length})`);
+
+    // Merge and prune events older than MAX_AGE_DAYS
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - MAX_AGE_DAYS);
+    const cutoffStr = cutoff.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const merged = [...newFiltered, ...existingEvents]
+      .filter((e) => e.event_date >= cutoffStr);
+
+    // Sort by date desc, then mentions desc
+    merged.sort((a, b) => {
       const dateDiff = new Date(b.event_date) - new Date(a.event_date);
       if (dateDiff !== 0) return dateDiff;
       return b.num_mentions - a.num_mentions;
     });
 
-    console.log(`[gdelt] Loaded ${deduped.length} unique conflict events — running Haiku filter...`);
+    console.log(`[gdelt] ${merged.length} total events after merge + prune`);
 
-    // Haiku classification pass: filters ambiguous events (Protests, low-signal
-    // Strategic developments) before they enter the cache.
-    const filtered = await applyHaikuFilter(deduped);
-
-    console.log(`[gdelt] ${filtered.length} events after Haiku filter (removed ${deduped.length - filtered.length})`);
-
-    cache.events    = filtered;
+    // Persist to disk and update in-memory cache
+    saveToDisk(merged, now);
+    cache.events    = merged;
     cache.fetchedAt = now;
 
-    return filtered.slice(0, limit);
+    return merged.slice(0, limit);
   } finally {
-    // Release the in-flight guard so future callers can trigger a new fetch
     fetchInFlight = null;
     resolveFlight?.();
   }

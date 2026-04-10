@@ -1,8 +1,9 @@
 # Environment variables (never commit these)
 .env
 
-# Runtime state — analyst feedback store (populated at runtime, not source-controlled)
+# Runtime state — populated at runtime, not source-controlled
 server/dismissed_events.json
+server/cache/
 .env.local
 .env.*.local
 

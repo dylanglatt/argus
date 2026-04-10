@@ -23,7 +23,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
   // Fetch FIRMS thermal anomalies when layer is enabled
   useEffect(() => {
     if (!showThermal) return;
-    if (firmsData) return; // already fetched
+    if (firmsData !== null) return; // already fetched (null = not yet fetched; [] = fetched but empty)
     let cancelled = false;
     (async () => {
       try {
@@ -204,16 +204,69 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
       >
         <NavigationControl position="top-right" showCompass={false} />
 
-        {/* Clustering source */}
+        {/*
+          Heatmap source — non-clustered, used only for the density background.
+          Separate from the marker source so heatmap renders all points as a
+          continuous density field, independent of clustering.
+        */}
+        <Source id="conflict-heatmap" type="geojson" data={geoData}>
+          <Layer
+            id="conflict-heatmap-layer"
+            type="heatmap"
+            paint={{
+              // Weight by num_mentions so widely-covered events burn brighter
+              'heatmap-weight': [
+                'interpolate', ['linear'], ['get', 'num_mentions'],
+                0, 0.1,
+                10, 0.4,
+                50, 0.7,
+                200, 1,
+              ],
+              // Intensity increases slightly as you zoom in
+              'heatmap-intensity': [
+                'interpolate', ['linear'], ['zoom'],
+                0, 0.6,
+                5, 1.2,
+              ],
+              // Color: transparent → navy → blue → orange → red
+              'heatmap-color': [
+                'interpolate', ['linear'], ['heatmap-density'],
+                0,    'rgba(0,0,0,0)',
+                0.15, 'rgba(29,53,87,0.6)',
+                0.35, 'rgba(29,78,216,0.7)',
+                0.6,  'rgba(180,83,9,0.8)',
+                0.8,  'rgba(185,28,28,0.85)',
+                1,    'rgba(220,38,38,0.9)',
+              ],
+              // Radius shrinks as you zoom in — tight clusters at street level
+              'heatmap-radius': [
+                'interpolate', ['linear'], ['zoom'],
+                0, 12,
+                4, 20,
+                7, 14,
+              ],
+              // Fade the heatmap out as zoom increases — markers take over
+              'heatmap-opacity': [
+                'interpolate', ['linear'], ['zoom'],
+                3,  0.85,
+                5,  0.55,
+                6,  0.2,
+                7,  0,
+              ],
+            }}
+          />
+        </Source>
+
+        {/* Clustered marker source — clusters + individual points */}
         <Source
           id="conflict-events"
           type="geojson"
           data={geoData}
           cluster={true}
-          clusterMaxZoom={5}
-          clusterRadius={50}
+          clusterMaxZoom={6}
+          clusterRadius={60}
         >
-          {/* Cluster bubble — color by conflict density (blue → orange → red) */}
+          {/* Cluster bubble — color by conflict density */}
           <Layer
             id="conflict-clusters"
             type="circle"
@@ -221,26 +274,23 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             paint={{
               'circle-color': [
                 'step', ['get', 'point_count'],
-                '#1d3557',   15,   // small cluster: dark navy
-                '#1d4ed8',   50,   // medium: blue
-                '#b45309',   150,  // large: amber
-                '#b91c1c',         // very large: red (conflict density)
+                '#1d4ed8',   20,
+                '#b45309',   75,
+                '#b91c1c',
               ],
               'circle-radius': [
                 'step', ['get', 'point_count'],
-                14,   15,
-                18,   50,
-                22,   150,
+                16,   20,
+                22,   75,
                 28,
               ],
-              'circle-opacity':        0.9,
+              'circle-opacity':        0.92,
               'circle-stroke-width':   1.5,
               'circle-stroke-color': [
                 'step', ['get', 'point_count'],
-                'rgba(100,140,255,0.3)',  15,
-                'rgba(100,140,255,0.3)',  50,
-                'rgba(255,160,50,0.3)',   150,
-                'rgba(255,80,80,0.3)',
+                'rgba(100,140,255,0.35)',  20,
+                'rgba(255,160,50,0.35)',   75,
+                'rgba(255,80,80,0.35)',
               ],
             }}
           />
@@ -253,23 +303,58 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             layout={{
               'text-field': ['get', 'point_count_abbreviated'],
               'text-font':  ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-              'text-size':  10,
+              'text-size':  11,
             }}
             paint={{ 'text-color': '#f6f7f9' }}
           />
 
-          {/* Individual unclustered points */}
+          {/*
+            Outer pulse ring on high-impact events (score >= 8).
+            Rendered before the fill so it sits behind the main dot.
+          */}
+          <Layer
+            id="conflict-points-pulse"
+            type="circle"
+            filter={['all', ['!', ['has', 'point_count']], ['>=', ['get', 'impact_score'], 8]]}
+            paint={{
+              'circle-radius': [
+                'interpolate', ['linear'], ['get', 'num_mentions'],
+                1, 9, 30, 14, 100, 18, 300, 22,
+              ],
+              'circle-color':   'transparent',
+              'circle-opacity': 1,
+              'circle-stroke-width': 1.5,
+              'circle-stroke-color': colorExpr,
+              'circle-stroke-opacity': [
+                'interpolate', ['linear'], ['zoom'],
+                4, 0,
+                6, 0.6,
+              ],
+            }}
+          />
+
+          {/* Individual unclustered event markers */}
           <Layer
             id="conflict-points"
             type="circle"
             filter={['!', ['has', 'point_count']]}
             paint={{
-              'circle-radius':         radiusExpr,
-              'circle-color':          colorExpr,
-              'circle-opacity':        0.88,
-              'circle-stroke-width':   0.75,
+              'circle-radius': radiusExpr,
+              'circle-color':  colorExpr,
+              // Fade in as zoom increases — heatmap handles the low-zoom view
+              'circle-opacity': [
+                'interpolate', ['linear'], ['zoom'],
+                3, 0,
+                5, 0.75,
+                7, 0.92,
+              ],
+              'circle-stroke-width':   1.5,
               'circle-stroke-color':   '#ffffff',
-              'circle-stroke-opacity': 0.2,
+              'circle-stroke-opacity': [
+                'interpolate', ['linear'], ['zoom'],
+                4, 0,
+                6, 0.35,
+              ],
             }}
           />
         </Source>

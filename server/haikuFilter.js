@@ -42,7 +42,14 @@ const ARMED_ACTOR_TYPES = new Set([
 
 // ---------------------------------------------------------------------------
 // Determine if an event can auto-pass Haiku based on hard signals.
-// Criteria: very high media saturation + extreme Goldstein + armed actors.
+// Criteria: armed actors + meaningful conflict score + multi-outlet coverage.
+//
+// Threshold rationale:
+//   goldstein ≤ -4 covers CAMEO codes like "Use conventional military force"
+//   (190x) and "Fight" (193x) which are inherently kinetic — very few false
+//   positives leak through at this level.
+//   num_sources ≥ 3: two additional outlets beyond the origin article confirms
+//   the event was newsworthy enough to propagate beyond a single outlet.
 // ---------------------------------------------------------------------------
 function canAutoPass(event) {
   const hasArmedActor =
@@ -51,8 +58,8 @@ function canAutoPass(event) {
 
   return (
     hasArmedActor &&
-    event.goldstein_scale <= -5 &&
-    event.num_sources >= 5
+    event.goldstein_scale <= -4 &&
+    event.num_sources >= 3
   );
 }
 
@@ -81,18 +88,19 @@ const PROMPT_TEMPLATE = `You are a conflict analyst filtering events for a milit
 The ONLY question you must answer: does this event describe KINETIC VIOLENCE in a military or armed-group context?
 
 YES means ALL of the following are true:
-1. Weapons were used, people were physically killed/injured, OR an armed force conducted a military operation (territory seizure, incursion, blockade, shelling position, troop deployment into contested area, hostage-taking, abduction by armed group)
-2. The perpetrators are military forces, armed rebel groups, paramilitary, terrorists, or state security forces
-3. The context is armed conflict, war, insurgency, or terrorism — NOT domestic crime, cultural controversy, or politics
+1. Weapons were used, people were physically killed/injured, OR an armed force conducted a specific military operation with clear territorial or physical effect (territory seizure, incursion, shelling of a position, troop deployment into an active combat zone, hostage-taking or abduction by an armed group)
+2. The perpetrators are military forces, armed rebel groups, paramilitary, terrorists, or state security forces acting in a combat role
+3. The context is active armed conflict, war, insurgency, or terrorism — NOT domestic crime, cultural controversy, elections, or diplomatic maneuvering
 
 NO means ANY of the following:
 - No weapons were used and no one was physically harmed
-- The violence is domestic crime (murder, road rage, robbery, assault)
-- The event is about politics, policy, sanctions, diplomacy, or elections
+- The violence is domestic crime (murder, road rage, robbery, assault, gang activity)
+- The event is about politics, policy, sanctions, diplomacy, peace talks, or elections
 - The event is about protests, demonstrations, activism, or cultural controversy
 - The event involves celebrities, entertainment, sports, or media disputes
 - The event is about hate speech, antisemitism, or discrimination WITHOUT physical violence occurring
-- The event describes threats, warnings, or posturing with no actual kinetic action
+- The event describes threats, warnings, alerts, or posturing with no actual kinetic action reported
+- Military mobilization, alert-status changes, or force build-ups WITHOUT confirmed combat contact (e.g. "forces placed on alert", "troops massed near border", "military exercises")
 - The event is a legal proceeding, arrest, deportation, or court ruling
 - The article is an opinion piece, editorial, analysis, commentary, or retrospective — i.e. it reflects on or analyzes a conflict rather than reporting a specific, new kinetic event
 - The article headline or framing uses constructs like "what X reveals about", "lessons from", "the case for/against", "why X matters", "what we learned", or other analytical/opinion framing
@@ -109,8 +117,14 @@ Answer YES or NO only.`;
 
 // ---------------------------------------------------------------------------
 // Classify a single event with retry on rate limits.
-// Fails CLOSED — unclassifiable events are rejected (not passed through).
-// This is deliberate: we'd rather drop an ambiguous event than show noise.
+//
+// Failure strategy (two-tier):
+//   FAIL OPEN  — armed actor + Goldstein ≤ -4: these have already cleared the
+//                structural filter gauntlet; a rate-limit hiccup shouldn't kill
+//                them. We accept a small risk of passing marginal events over
+//                silently discarding high-confidence kinetic incidents.
+//   FAIL CLOSED — everything else: we'd rather drop an ambiguous event than
+//                 show noise on an operational dashboard.
 // ---------------------------------------------------------------------------
 async function classifyEvent(client, event, retries = 2) {
   const prompt = PROMPT_TEMPLATE
@@ -123,6 +137,12 @@ async function classifyEvent(client, event, retries = 2) {
     .replace('{location}',    event.location)
     .replace('{source_url}',  event.source_url || 'unavailable')
     .replace('{notes}',       event.notes || '');
+
+  // High-confidence signal: armed actor type + extreme Goldstein.
+  // If Haiku is unavailable (rate limit exhausted), we fail open for these.
+  const isHighConfidence =
+    (ARMED_ACTOR_TYPES.has(event.actor1_type) || ARMED_ACTOR_TYPES.has(event.actor2_type)) &&
+    event.goldstein_scale <= -4;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -141,6 +161,11 @@ async function classifyEvent(client, event, retries = 2) {
         console.warn(`[haiku] Rate limited on ${event.event_id_cnty} — retrying in ${wait / 1000}s (attempt ${attempt + 1}/${retries})`);
         await new Promise((r) => setTimeout(r, wait));
         continue;
+      }
+      // Retries exhausted — apply two-tier failure strategy
+      if (isHighConfidence) {
+        console.warn(`[haiku] ⚠ Fail-open (high-confidence) ${event.event_id_cnty}: ${err.message?.slice(0, 60)}`);
+        return true;
       }
       console.warn(`[haiku] Classification failed for ${event.event_id_cnty}: ${err.message?.slice(0, 80)}`);
       return false; // Fail closed — reject ambiguous events

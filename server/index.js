@@ -16,10 +16,16 @@ app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
-// Kick off a background GDELT prefetch on server startup so the first
-// client request hits a warm cache rather than waiting for downloads.
+// Background cache management
+//
+// On startup: warm the cache immediately (disk hit = instant, cold = full fetch).
+// After warmup: refresh every 15 minutes so the cache is always current and
+// incoming requests never block on a stale fetch.
 // ---------------------------------------------------------------------------
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 min — matches GDELT publish cadence
+
 let warmupDone = false;
+
 async function warmCache() {
   try {
     console.log('[startup] Pre-fetching GDELT conflict events...');
@@ -30,7 +36,23 @@ async function warmCache() {
     console.error('[startup] GDELT warmup failed:', err.message);
   }
 }
-warmCache();
+
+async function backgroundRefresh() {
+  try {
+    console.log('[refresh] Background GDELT refresh starting...');
+    await fetchConflictEvents({ days: 7, stepHours: 6, limit: 1000 });
+    console.log('[refresh] Done.');
+  } catch (err) {
+    console.error('[refresh] Background refresh failed:', err.message);
+  }
+}
+
+// Warm on startup, then refresh on a fixed cadence.
+// The refresh runs whether or not any client is connected — the dashboard
+// always wakes up to current data regardless of how long it's been idle.
+warmCache().then(() => {
+  setInterval(backgroundRefresh, REFRESH_INTERVAL_MS);
+});
 
 // ---------------------------------------------------------------------------
 // Routes

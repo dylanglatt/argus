@@ -64,8 +64,15 @@ function parseFirmsCsv(csv) {
     const row = {};
     headers.forEach((h, idx) => { row[h] = vals[idx]?.trim(); });
 
-    const confidence = parseInt(row.confidence, 10);
-    if (isNaN(confidence) || confidence <= 70) continue;
+    // VIIRS confidence is a single-letter code: "l" (low), "n" (nominal), "h" (high)
+    // MODIS confidence is numeric 0–100. Handle both.
+    const rawConf = (row.confidence || '').trim().toLowerCase();
+    const confidence =
+      rawConf === 'l' || rawConf === 'low'         ? 30 :
+      rawConf === 'n' || rawConf === 'nominal'      ? 60 :
+      rawConf === 'h' || rawConf === 'high'         ? 90 :
+      parseInt(rawConf, 10);
+    if (isNaN(confidence) || confidence < 60) continue; // drop low-confidence detections
 
     const lat = parseFloat(row.latitude);
     const lon = parseFloat(row.longitude);
@@ -74,7 +81,7 @@ function parseFirmsCsv(csv) {
     results.push({
       latitude:   lat,
       longitude:  lon,
-      confidence,
+      confidence, // normalized to numeric (30/60/90 for VIIRS, raw int for MODIS)
       frp:        parseFloat(row.frp) || 0,
       bright_ti4: parseFloat(row.bright_ti4) || 0,
       acq_date:   row.acq_date || '',

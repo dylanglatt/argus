@@ -34,7 +34,7 @@ const SORT_BTN = (active) => ({
  * Selected event row is highlighted with a blue accent.
  * Default sort: by impact score (highest first) so meaningful events surface.
  */
-export function EventFeed({ events, onEventClick, selectedEventId }) {
+export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) {
   const [sortBy, setSortBy] = useState('impact'); // 'impact' | 'date'
 
   const sorted = [...events].sort((a, b) =>
@@ -89,7 +89,7 @@ export function EventFeed({ events, onEventClick, selectedEventId }) {
       {/* Column headers */}
       <div style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 1fr 1fr 38px 26px',
+        gridTemplateColumns: '4px 90px 22px 1fr 1fr 38px 26px 22px',
         height:              '24px',
         alignItems:          'center',
         borderBottom:        '1px solid #1e1e30',
@@ -102,6 +102,7 @@ export function EventFeed({ events, onEventClick, selectedEventId }) {
         <span style={COL_LABEL}>LOCATION</span>
         <span style={COL_LABEL}>ACTOR</span>
         <span style={{ ...COL_LABEL, textAlign: 'right' }}>SCORE</span>
+        <span />
         <span />
       </div>
 
@@ -127,6 +128,7 @@ export function EventFeed({ events, onEventClick, selectedEventId }) {
               event={event}
               isSelected={selectedEventId === event.event_id_cnty}
               onClick={() => onEventClick?.(event)}
+              onDismiss={onDismiss ? () => onDismiss(event.event_id_cnty) : null}
             />
           ))
         )}
@@ -135,7 +137,7 @@ export function EventFeed({ events, onEventClick, selectedEventId }) {
   );
 }
 
-function EventRow({ event, onClick, isSelected }) {
+function EventRow({ event, onClick, isSelected, onDismiss }) {
   const [hovered, setHovered] = React.useState(false);
   const eventType = EVENT_TYPES[event.event_type];
 
@@ -166,7 +168,7 @@ function EventRow({ event, onClick, isSelected }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 1fr 1fr 38px 26px',
+        gridTemplateColumns: '4px 90px 22px 1fr 1fr 38px 26px 22px',
         minHeight:           '34px',
         alignItems:          'center',
         borderBottom:        '1px solid #1e1e3066',
@@ -281,6 +283,41 @@ function EventRow({ event, onClick, isSelected }) {
           </a>
         ) : (
           <span style={{ color: '#1e1e30', fontSize: '11px' }}>↗</span>
+        )}
+      </span>
+
+      {/* Dismiss button — visible on hover only */}
+      <span
+        style={{
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: 'center',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {onDismiss && hovered ? (
+          <button
+            onClick={onDismiss}
+            title="Mark as noise — remove from feed"
+            style={{
+              background:   'transparent',
+              border:       'none',
+              cursor:       'pointer',
+              fontFamily:   'Inter, sans-serif',
+              fontSize:     '11px',
+              color:        '#4a4a6a',
+              lineHeight:   1,
+              padding:      '2px 3px',
+              borderRadius: '2px',
+              transition:   'color 0.1s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#4a4a6a')}
+          >
+            ✕
+          </button>
+        ) : (
+          <span />
         )}
       </span>
     </div>

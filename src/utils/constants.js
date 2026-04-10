@@ -27,10 +27,6 @@ export const EVENT_TYPES = {
     label: 'Violence against civilians',
     color: '#eab308',
   },
-  'Protests': {
-    label: 'Protests',
-    color: '#3b82f6',
-  },
   'Riots': {
     label: 'Riots',
     color: '#8b5cf6',

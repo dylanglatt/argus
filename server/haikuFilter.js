@@ -184,6 +184,14 @@ async function classifyEvent(client, event, retries = 2) {
 // @returns {Promise<Array>} Filtered events
 // ---------------------------------------------------------------------------
 export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 } = {}) {
+  // Vercel serverless functions have a 30s timeout — the 10s inter-batch delay
+  // makes Haiku infeasible here. Structural CAMEO filtering already gates to
+  // kinetic events only; CDN-level caching (s-maxage=3600) handles freshness.
+  if (process.env.VERCEL) {
+    console.log('[haiku] Serverless env detected — skipping Haiku filter (CDN cache active)');
+    return events;
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('[haiku] ANTHROPIC_API_KEY not set — skipping Haiku filter');
     return events;

@@ -2,6 +2,12 @@
   "functions": {
     "api/events.js": {
       "maxDuration": 30
+    },
+    "api/firms/index.js": {
+      "maxDuration": 15
+    },
+    "api/firms/corroborate-batch.js": {
+      "maxDuration": 15
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 
 /**
  * useEventData
@@ -20,6 +20,7 @@ export function useEventData(filters = {}) {
   const [error, setError]     = useState(null);
   const [dataSource, setDataSource] = useState('gdelt');
   const [fetchedAt, setFetchedAt]   = useState(null); // Unix ms of last GDELT cache fill
+  const [dismissedIds, setDismissedIds] = useState(new Set()); // Analyst-dismissed event IDs
 
   const {
     eventTypes  = [],
@@ -41,6 +42,7 @@ export function useEventData(filters = {}) {
         setEvents(json.data || []);
         setDataSource(json.source || 'gdelt');
         setFetchedAt(json.fetchedAt || null);
+        setDismissedIds(new Set((json.dismissedIds || []).map(String)));
         setError(null);
       } catch (err) {
         console.error('[useEventData] fetch error:', err);
@@ -168,6 +170,23 @@ export function useEventData(filters = {}) {
     };
   }, [filteredEvents]);
 
+  // ---------------------------------------------------------------------------
+  // Analyst feedback: dismiss an event as noise.
+  // Optimistically removes it from local state, then notifies the backend.
+  // ---------------------------------------------------------------------------
+  const dismissEvent = useCallback(async (eventId) => {
+    const id = String(eventId);
+    // Optimistic update — remove immediately from UI
+    setDismissedIds((prev) => new Set([...prev, id]));
+    setEvents((prev) => prev.filter((e) => String(e.event_id_cnty) !== id));
+
+    try {
+      await fetch(`/api/events/${id}/dismiss`, { method: 'POST' });
+    } catch (err) {
+      console.warn('[useEventData] dismiss failed:', err.message);
+    }
+  }, []);
+
   return {
     events,
     filteredEvents,
@@ -176,6 +195,8 @@ export function useEventData(filters = {}) {
     error,
     dataSource,
     fetchedAt,
+    dismissedIds,
+    dismissEvent,
     stats,
   };
 }

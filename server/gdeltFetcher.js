@@ -34,6 +34,7 @@
 import http from 'http';
 import https from 'https';
 import zlib from 'zlib';
+import { applyHaikuFilter } from './haikuFilter.js';
 
 // ---------------------------------------------------------------------------
 // GDELT column indices (0-indexed, GDELT 2.0 export format)
@@ -42,7 +43,9 @@ const C = {
   GLOBALEVENTID:       0,
   SQLDATE:             1,
   Actor1Name:          6,
+  Actor1Type1Code:     12,  // e.g. MIL, GOV, REB, CVL, BUS, COP — primary actor type
   Actor2Name:          16,
+  Actor2Type1Code:     22,  // same type codes for actor 2
   EventCode:           26,
   EventBaseCode:       27,
   EventRootCode:       28,
@@ -67,11 +70,27 @@ function mapEventType(eventRootCode, eventCode) {
   const root = parseInt(eventRootCode, 10);
   const code = String(eventCode || '');
 
-  // Riots (violent protest — subset of root 14)
+  // -------------------------------------------------------------------
+  // KINETIC EVENTS ONLY — if nobody is being shot, bombed, or attacked,
+  // it doesn't belong in a conflict tracker.
+  //
+  // EXCLUDED root codes (non-kinetic, generate enormous noise):
+  //   13 THREATEN         → verbal threats, diplomatic warnings
+  //   14 PROTEST          → rallies, demonstrations, flotillas
+  //   16 REDUCE RELATIONS → diplomatic reductions, severed ties
+  //   17 COERCE           → sanctions, privatization, legal action
+  //
+  // Exception: CAMEO 145 (violent riot) is kinetic and kept.
+  // -------------------------------------------------------------------
+
+  // Riots (violent protest — subset of root 14, the ONLY 14x code we keep)
   if (code === '145') return 'Riots';
 
-  // Protests (non-violent)
-  if (root === 14) return 'Protests';
+  // Root 14 (all non-violent protests) — excluded
+  if (root === 14) return null;
+
+  // Roots 13, 16, 17 — excluded (verbal threats, diplomatic, sanctions)
+  if (root === 13 || root === 16 || root === 17) return null;
 
   // Explosions / Remote violence — bombings, airstrikes, artillery
   if (
@@ -90,10 +109,11 @@ function mapEventType(eventRootCode, eventCode) {
   // Battles — fighting, military engagement
   if (root === 19) return 'Battles';
 
-  // Strategic developments — threats, force posture, severed relations, coercion
-  // Root 17 (COERCE) includes sanctions, seizures, expulsions — political pressure,
-  // not battlefield activity. Grouping with strategic developments is more accurate.
-  if (root === 13 || root === 15 || root === 16 || root === 17) return 'Strategic developments';
+  // Military posture — mobilization, force display (root 15)
+  // Only MILITARY codes: 152 (military alert), 154 (armed forces), 155 (clandestine).
+  // Exclude 150 (generic), 151 (police alert), 153 (police power) — domestic policing.
+  if (code === '152' || code === '154' || code === '155') return 'Strategic developments';
+  if (root === 15) return null;
 
   return null; // Not a conflict event we track
 }
@@ -272,6 +292,66 @@ function buildNotes(eventType, subType, actor1, actor2, location, numMentions, n
 }
 
 // ---------------------------------------------------------------------------
+// URL slug hard-filter: patterns that are 100% incompatible with armed conflict.
+// These are checked against the lowercase source URL before any other logic.
+// Using this as a pre-Haiku gate is cheaper and more reliable than asking an
+// LLM to re-discover that "protective-order-ruling" is not a war event.
+// ---------------------------------------------------------------------------
+const REJECT_URL_SLUGS = [
+  // Family / domestic law — never kinetic conflict
+  'protective-order', 'restraining-order', 'child-custody', 'custody-battle',
+  'no-contact-order', 'divorce-settlement', 'custody-hearing', 'parental-rights',
+  'visitation-rights', 'unsupervised-visit', 'alimony', 'child-support',
+  // Court outcomes that are structurally non-conflict
+  'court-ruling', 'court-order', 'court-decision', 'verdict-reached',
+  'pleads-guilty', 'plea-deal', 'sentenced-to', 'acquitted',
+  // Celebrity / entertainment — high GDELT false-positive surface area
+  '-wedding-', '-engagement-', '-honeymoon-', '-baby-shower-', '-pregnancy-',
+  '-maternity-', '-breakup-', '-divorce-',
+  // Sports — GDELT frequently misreads competitive language as conflict
+  'super-bowl', 'world-cup', 'march-madness', 'nfl-', 'nba-', 'mlb-', 'nhl-', '-mls-',
+  // Entertainment awards
+  'grammy', 'oscar-', '-emmy-', 'golden-globe', 'box-office',
+  // Domestic accidents / weather — not conflict
+  'car-accident', 'car-crash', 'traffic-accident', 'plane-crash',
+  'hurricane-', 'tornado-', 'wildfire-', 'earthquake-',
+];
+
+function rejectByUrl(sourceUrl) {
+  if (!sourceUrl) return false;
+  const slug = sourceUrl.toLowerCase();
+  return REJECT_URL_SLUGS.some((pattern) => slug.includes(pattern));
+}
+
+// ---------------------------------------------------------------------------
+// Stable-country civilian filter.
+//
+// In low-conflict, high-rule-of-law countries (US, UK, EU core, etc.) GDELT
+// overwhelmingly misclassifies domestic crime, sports disputes, and social
+// media arguments as kinetic conflict events. Real armed-conflict events in
+// these countries (e.g. a terrorist attack) WILL have armed actor type codes
+// (MIL, COP, REB, GOV, SPY) or very negative Goldstein (≤ -5). If neither
+// condition holds, the event is almost certainly noise.
+// ---------------------------------------------------------------------------
+const STABLE_COUNTRY_CODES = new Set([
+  'US', 'CA', 'UK', 'GM', 'FR', 'IT', 'SP', 'NL', 'BE', 'AU', 'NZ',
+  'JA', 'SW', 'NO', 'DA', 'FI', 'EI', 'PO', 'EZ', 'PL', 'HU',
+  'SZ', 'AU', 'AS',   // Austria/Australia both map to AS/AU — covered
+]);
+
+const ARMED_TYPES_FOR_STABLE = new Set(['MIL', 'REB', 'SPY', 'UAF', 'COP', 'GOV', 'IGO']);
+
+function rejectStableCountryNoise(countryCode, actor1_type, actor2_type, goldstein) {
+  if (!STABLE_COUNTRY_CODES.has(countryCode)) return false; // Not a stable country — keep
+  const hasArmedActor =
+    ARMED_TYPES_FOR_STABLE.has(actor1_type) ||
+    ARMED_TYPES_FOR_STABLE.has(actor2_type);
+  if (hasArmedActor) return false;         // Armed actors present — keep
+  if (goldstein <= -5) return false;       // Extreme conflict score — keep
+  return true;                             // Civilian actors + mild Goldstein in stable country → reject
+}
+
+// ---------------------------------------------------------------------------
 // Normalize a single parsed row into Sentinel schema
 // Returns null if the event should be filtered out
 // hourBucket: the UTC hour of the GDELT file (0, 6, 12, or 18), used to
@@ -283,30 +363,25 @@ function normalizeRow(cols, hourBucket = 0) {
   const quadClass = parseInt(cols[C.QuadClass], 10);
   const rootCode  = parseInt(cols[C.EventRootCode], 10);
 
-  // Keep only conflict events (Verbal Conflict = 3, Material Conflict = 4).
-  // Both gates must pass: QuadClass ensures GDELT's own conflict classification,
-  // AND root code must be a conflict-relevant category (13–20).
-  // Using || was too permissive — root codes 13–20 include judicial/legal events
-  // (e.g. root 17 COERCE, code 172 "Arrest or detain") that would pass even
-  // when QuadClass indicates a cooperative or neutral event.
-  const isConflict = quadClass >= 3 && rootCode >= 13 && rootCode <= 20;
+  // Keep only Material Conflict (QuadClass 4) with kinetic root codes.
+  // QuadClass 3 (Verbal Conflict) is excluded — verbal threats are not kinetic.
+  // Kinetic roots: 15 (force posture), 18 (assault), 19 (fight), 20 (mass violence).
+  // Root 14 is only kept for code 145 (violent riot); all others are non-kinetic.
+  // Roots 13, 16, 17 are fully excluded by mapEventType → null.
+  const isConflict = quadClass >= 3 && rootCode >= 14 && rootCode <= 20;
   if (!isConflict) return null;
 
   const eventCode = String(cols[C.EventCode] || '').trim();
-
-  // Exclude domestic judicial / legal-process CAMEO codes that are not
-  // operational conflict events:
-  //   172 — Arrest or detain with legal action  (criminal prosecutions, guilty pleas)
-  //   173 — Expel or deport individuals         (immigration enforcement)
-  // These pass root-17 (COERCE) but represent legal proceedings, not conflict.
-  const JUDICIAL_CODES = new Set(['172', '173']);
-  if (JUDICIAL_CODES.has(eventCode) || JUDICIAL_CODES.has(eventCode.slice(0, 3))) return null;
   const eventType = mapEventType(cols[C.EventRootCode], eventCode);
   if (!eventType) return null;
 
-  // Require at least 2 media mentions to suppress single-source noise
+  // Require at least 3 distinct source outlets.
+  // 1–2 source events are overwhelmingly domestic noise that GDELT has
+  // misclassified — real geopolitical conflict gets picked up by 3+ outlets.
+  const numSources  = parseInt(cols[C.NumSources], 10) || 0;
+  if (numSources < 3) return null;
+
   const numMentions = parseInt(cols[C.NumMentions], 10) || 0;
-  if (numMentions < 2) return null;
 
   // Require valid geographic coordinates
   const lat = parseFloat(cols[C.ActionGeo_Lat]);
@@ -319,8 +394,7 @@ function normalizeRow(cols, hourBucket = 0) {
   const eventDate = `${sqlDate.slice(0, 4)}-${sqlDate.slice(4, 6)}-${sqlDate.slice(6, 8)}`;
 
   const goldstein   = parseFloat(cols[C.GoldsteinScale]) || 0;
-  // numMentions already declared above for the >=2 filter; reuse it
-  const numSources  = parseInt(cols[C.NumSources], 10) || 1;
+  // numSources and numMentions already declared above for the gate checks; reuse them
   const numArticles = parseInt(cols[C.NumArticles], 10) || 1;
   const avgTone     = parseFloat(cols[C.AvgTone]) || 0;
 
@@ -329,8 +403,42 @@ function normalizeRow(cols, hourBucket = 0) {
   const location    = String(cols[C.ActionGeo_FullName] || '').trim() || country;
   const admin1      = String(cols[C.ActionGeo_ADM1] || '').trim();
 
+  const sourceUrl = String(cols[C.SOURCEURL] || '').trim();
+
+  // URL slug hard-filter: reject unambiguously non-conflict content before
+  // doing any further work. Patterns like "protective-order-ruling" or
+  // "child-custody" cannot appear in a legitimate armed-conflict article.
+  if (rejectByUrl(sourceUrl)) return null;
+
   const actor1 = cleanActorName(cols[C.Actor1Name]);
   const actor2 = cleanActorName(cols[C.Actor2Name]);
+  const actor1_type = String(cols[C.Actor1Type1Code] || '').trim().toUpperCase();
+  const actor2_type = String(cols[C.Actor2Type1Code] || '').trim().toUpperCase();
+
+  // Stable-country civilian filter: US/UK/EU etc. with no armed actor types
+  // and a Goldstein score above -5 are almost always domestic noise.
+  if (rejectStableCountryNoise(countryCode, actor1_type, actor2_type, goldstein)) return null;
+
+  // Exclude events where actors are clearly non-conflict entities.
+  // GDELT extracts these from everyday news about civilians, consumers, etc.
+  // and misclassifies them as conflict actors.
+  const NOISE_ACTORS = new Set([
+    // Civilian roles — never armed-conflict actors
+    'Traveler', 'Tourist', 'Resident', 'Consumer', 'Student', 'Patient',
+    'Voter', 'Taxpayer', 'Employee', 'Worker', 'Driver', 'Farmer',
+    'Immigrant', 'Refugee', 'Visitor', 'Homeowner', 'Tenant', 'Donor',
+  ]);
+  // Legal/judicial actors — court proceedings are NEVER kinetic conflict.
+  // Any event with a legal actor on either side is a misclassification.
+  const LEGAL_ACTORS = new Set([
+    'Attorney', 'Lawyer', 'Prosecutor', 'Judge', 'Magistrate',
+    'Defendant', 'Plaintiff', 'Solicitor', 'Barrister', 'Counsel',
+  ]);
+  if (LEGAL_ACTORS.has(actor1) || LEGAL_ACTORS.has(actor2)) return null;
+
+  if (NOISE_ACTORS.has(actor1) && NOISE_ACTORS.has(actor2)) return null;
+  if (NOISE_ACTORS.has(actor1) && actor2 === 'Unknown') return null;
+  if (NOISE_ACTORS.has(actor2) && actor1 === 'Unknown') return null;
 
   const subType = CAMEO_DESC[eventCode] || CAMEO_DESC[String(eventCode).slice(0, 3)] || eventType;
 
@@ -345,6 +453,8 @@ function normalizeRow(cols, hourBucket = 0) {
     sub_event_type:  subType,
     actor1,
     actor2,
+    actor1_type,     // GDELT type code: MIL, GOV, REB, CVL, BUS, COP, etc.
+    actor2_type,
     country,
     admin1,
     location,
@@ -483,13 +593,17 @@ function buildFileUrls(days = 7, stepHours = 6) {
 }
 
 // ---------------------------------------------------------------------------
-// In-memory cache
+// In-memory cache + in-flight guard
 // ---------------------------------------------------------------------------
 let cache = {
   events:    null,
   fetchedAt: null,
   ttlMs:     15 * 60 * 1000, // 15 minutes — matches GDELT publish cadence
 };
+
+// Single in-flight promise: if a fetch is already running, concurrent callers
+// wait for it rather than launching duplicate GDELT downloads + Haiku passes.
+let fetchInFlight = null;
 
 // ---------------------------------------------------------------------------
 // Public API: fetchConflictEvents()
@@ -511,42 +625,65 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
     return cache.events.slice(0, limit);
   }
 
-  console.log(`[gdelt] Cache miss — fetching GDELT files (last ${days} days @ ${stepHours}h intervals)`);
-
-  const urls   = buildFileUrls(days, stepHours);
-  console.log(`[gdelt] Downloading ${urls.length} files in parallel...`);
-
-  // Download in batches of 8 to avoid hammering GDELT servers
-  const BATCH = 8;
-  const allEvents = [];
-  for (let i = 0; i < urls.length; i += BATCH) {
-    const batch   = urls.slice(i, i + BATCH);
-    const results = await Promise.all(batch.map(downloadAndParse));
-    results.forEach((evts) => allEvents.push(...evts));
-    console.log(`[gdelt] Batch ${Math.ceil(i / BATCH) + 1}/${Math.ceil(urls.length / BATCH)} done — running total: ${allEvents.length}`);
+  // If a fetch is already in progress, wait for it instead of launching another
+  if (fetchInFlight) {
+    console.log('[gdelt] Fetch already in progress — waiting for result...');
+    await fetchInFlight;
+    return (cache.events || []).slice(0, limit);
   }
 
-  // Deduplicate by event ID
-  const seen = new Set();
-  const deduped = allEvents.filter((e) => {
-    if (seen.has(e.event_id_cnty)) return false;
-    seen.add(e.event_id_cnty);
-    return true;
-  });
+  console.log(`[gdelt] Cache miss — fetching GDELT files (last ${days} days @ ${stepHours}h intervals)`);
 
-  // Sort by date descending, then by num_mentions descending
-  deduped.sort((a, b) => {
-    const dateDiff = new Date(b.event_date) - new Date(a.event_date);
-    if (dateDiff !== 0) return dateDiff;
-    return b.num_mentions - a.num_mentions;
-  });
+  // Set the in-flight guard — cleared in finally block regardless of outcome
+  let resolveFlight;
+  fetchInFlight = new Promise((r) => { resolveFlight = r; });
 
-  console.log(`[gdelt] Loaded ${deduped.length} unique conflict events`);
+  try {
+    const urls = buildFileUrls(days, stepHours);
+    console.log(`[gdelt] Downloading ${urls.length} files in parallel...`);
 
-  cache.events    = deduped;
-  cache.fetchedAt = now;
+    // Download in batches of 8 to avoid hammering GDELT servers
+    const BATCH = 8;
+    const allEvents = [];
+    for (let i = 0; i < urls.length; i += BATCH) {
+      const batch   = urls.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(downloadAndParse));
+      results.forEach((evts) => allEvents.push(...evts));
+      console.log(`[gdelt] Batch ${Math.ceil(i / BATCH) + 1}/${Math.ceil(urls.length / BATCH)} done — running total: ${allEvents.length}`);
+    }
 
-  return deduped.slice(0, limit);
+    // Deduplicate by event ID
+    const seen = new Set();
+    const deduped = allEvents.filter((e) => {
+      if (seen.has(e.event_id_cnty)) return false;
+      seen.add(e.event_id_cnty);
+      return true;
+    });
+
+    // Sort by date descending, then by num_mentions descending
+    deduped.sort((a, b) => {
+      const dateDiff = new Date(b.event_date) - new Date(a.event_date);
+      if (dateDiff !== 0) return dateDiff;
+      return b.num_mentions - a.num_mentions;
+    });
+
+    console.log(`[gdelt] Loaded ${deduped.length} unique conflict events — running Haiku filter...`);
+
+    // Haiku classification pass: filters ambiguous events (Protests, low-signal
+    // Strategic developments) before they enter the cache.
+    const filtered = await applyHaikuFilter(deduped);
+
+    console.log(`[gdelt] ${filtered.length} events after Haiku filter (removed ${deduped.length - filtered.length})`);
+
+    cache.events    = filtered;
+    cache.fetchedAt = now;
+
+    return filtered.slice(0, limit);
+  } finally {
+    // Release the in-flight guard so future callers can trigger a new fetch
+    fetchInFlight = null;
+    resolveFlight?.();
+  }
 }
 
 // ---------------------------------------------------------------------------

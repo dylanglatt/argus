@@ -3,8 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { fetchConflictEvents, getCacheFetchedAt } from './gdeltFetcher.js';
 import { mockEvents } from './mockData.js';
+import { dismissEvent, undismissEvent, getDismissedIds, filterDismissed } from './feedbackStore.js';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const app  = express();
 const PORT = 3001;
@@ -91,15 +92,53 @@ app.get('/api/events', async (req, res) => {
     events = events.filter((e) => countries.includes(e.country));
   }
 
+  // Remove analyst-dismissed events before serving
+  events = filterDismissed(events);
+
   events.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
 
   console.log(`[events] Returning ${Math.min(events.length, limit)} events (source: ${source})`);
   res.json({
-    data:      events.slice(0, limit),
-    count:     events.length,
+    data:         events.slice(0, limit),
+    count:        events.length,
     source,
-    fetchedAt: getCacheFetchedAt(), // Unix ms timestamp of last GDELT cache fill
+    fetchedAt:    getCacheFetchedAt(),
+    dismissedIds: getDismissedIds(), // Let frontend sync dismissed state on load
   });
+});
+
+// ---------------------------------------------------------------------------
+// Feedback loop — analyst dismiss / restore
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /api/events/:id/dismiss
+ * Mark an event as analyst-identified noise. Persists across restarts.
+ */
+app.post('/api/events/:id/dismiss', (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Missing event id' });
+  dismissEvent(id);
+  res.json({ ok: true, dismissed: id });
+});
+
+/**
+ * DELETE /api/events/:id/dismiss
+ * Undo a dismissal — restore a previously marked event.
+ */
+app.delete('/api/events/:id/dismiss', (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Missing event id' });
+  undismissEvent(id);
+  res.json({ ok: true, restored: id });
+});
+
+/**
+ * GET /api/feedback/dismissed
+ * Returns all dismissed event IDs (for debugging / analyst review).
+ */
+app.get('/api/feedback/dismissed', (_req, res) => {
+  res.json({ dismissed: getDismissedIds(), count: getDismissedIds().length });
 });
 
 app.listen(PORT, () => {

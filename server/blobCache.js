@@ -9,7 +9,7 @@
  * Blob key: "events.json" (public, no random suffix)
  */
 
-import { put, list } from '@vercel/blob';
+import { put, list, getDownloadUrl } from '@vercel/blob';
 
 const BLOB_KEY = 'events.json';
 
@@ -34,7 +34,9 @@ export async function getEventsFromBlob() {
     const { blobs } = await list({ prefix: BLOB_KEY, limit: 1 });
     if (!blobs[0]?.url) return null;
 
-    const res = await fetch(blobs[0].url);
+    // Private store: generate a signed download URL before fetching
+    const downloadUrl = await getDownloadUrl(blobs[0].url);
+    const res = await fetch(downloadUrl);
     if (!res.ok) {
       console.warn(`[blobCache] fetch from blob URL failed: ${res.status}`);
       return null;
@@ -74,7 +76,7 @@ export async function setEventsInBlob(events, fetchedAt) {
   try {
     const payload = JSON.stringify({ events, fetchedAt });
     await put(BLOB_KEY, payload, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: false,
       contentType: 'application/json',
     });

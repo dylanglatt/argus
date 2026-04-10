@@ -540,8 +540,13 @@ function InitScreen() {
 // ── Status bar ────────────────────────────────────────────────────────────
 
 function StatusBar({ dataSource }) {
-  const sourceLabel = dataSource === 'gdelt' ? 'GDELT 2.0 EVENT DATABASE' : 'MOCK DATA';
-  const sourceColor = dataSource === 'gdelt' ? '#32a467' : '#5f6b7c';  // Blueprint green4 / gray1
+  const isLive = dataSource === 'gdelt' || dataSource === 'gdelt_live' || dataSource === 'kv';
+  const sourceLabel =
+    dataSource === 'kv'          ? 'GDELT 2.0 · HAIKU FILTERED' :
+    dataSource === 'gdelt_live'  ? 'GDELT 2.0 · LIVE' :
+    dataSource === 'gdelt'       ? 'GDELT 2.0 EVENT DATABASE' :
+                                   'MOCK DATA';
+  const sourceColor = isLive ? '#32a467' : '#5f6b7c';  // Blueprint green4 / gray1
 
   return (
     <div style={{

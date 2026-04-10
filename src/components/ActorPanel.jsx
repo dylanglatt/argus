@@ -18,16 +18,33 @@ const LABEL_STYLE = {
  * Blueprint style: elevated-bg rows (#252a31), left-border accent on selection,
  * Blueprint blue4 for active state.
  */
+// Nationality adjectives that the backend should already normalize but that
+// can slip through on stale cached data — defense-in-depth client-side guard.
+const NATIONALITY_ADJECTIVES = new Set([
+  'Israeli','Lebanese','Iranian','Palestinian','Ukrainian','Russian','Chinese',
+  'Syrian','Yemeni','Somali','Nigerian','Sudanese','Libyan','Afghan','Iraqi',
+  'Turkish','Kurdish','Philippine','Cameroonian','Polish','Malian','Eritrean',
+  'Ethiopian','Burmese','Myanmar',
+]);
+
 export function ActorPanel({ events, searchQuery, onSearch }) {
   const topActors = useMemo(() => {
     if (!events || events.length === 0) return [];
 
+    // Build a set of country names present in this event dataset so we can
+    // suppress bare country names that leaked through as actor labels.
+    const countryNames = new Set(events.map((e) => e.country).filter(Boolean));
+
     const counts = {};
     events.forEach((e) => {
-      if (e.actor1 && e.actor1 !== 'Unknown')
-        counts[e.actor1] = (counts[e.actor1] || 0) + 1;
-      if (e.actor2 && e.actor2 !== 'Unknown')
-        counts[e.actor2] = (counts[e.actor2] || 0) + 1;
+      [e.actor1, e.actor2].forEach((actor) => {
+        if (!actor || actor === 'Unknown') return;
+        // Suppress bare country names (e.g. "Lebanon", "Iran")
+        if (countryNames.has(actor)) return;
+        // Suppress unresolved nationality adjectives (stale cache defense)
+        if (NATIONALITY_ADJECTIVES.has(actor)) return;
+        counts[actor] = (counts[actor] || 0) + 1;
+      });
     });
 
     const sorted   = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);

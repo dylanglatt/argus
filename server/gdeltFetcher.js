@@ -297,6 +297,67 @@ const FIPS_TO_COUNTRY = {
 };
 
 // ---------------------------------------------------------------------------
+// Actor normalization support sets — derived from FIPS_TO_COUNTRY + manual
+// ---------------------------------------------------------------------------
+
+// Full country names — used to demote bare country-name actors with no type code.
+const COUNTRY_NAMES = new Set(Object.values(FIPS_TO_COUNTRY));
+
+// US states and territories — GDELT frequently confuses geographic location
+// with actor identity, producing entries like "Florida []" or "California []".
+const US_STATES = new Set([
+  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
+  'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
+  'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada',
+  'New Hampshire','New Jersey','New Mexico','New York','North Carolina',
+  'North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
+  'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
+  'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
+  'Puerto Rico','Guam','District of Columbia',
+]);
+
+// Major cities that GDELT occasionally extracts as MIL/GOV actor names
+// (e.g. "London forces", "Moscow-based group" → Actor1Name = "LONDON")
+const CITY_ACTOR_NAMES = new Set([
+  'London','Beirut','Washington','Moscow','Gaza','Kabul','Baghdad','Damascus',
+  'Beijing','Kyiv','Tehran','Paris','Berlin','Cairo','Riyadh','Islamabad',
+  'Nairobi','Mogadishu','Khartoum','Sanaa','Tripoli','Ankara','Doha',
+  'Abu Dhabi','Islamabad','Pyongyang','Seoul','Tokyo','Delhi','Mumbai',
+]);
+
+// Nationality adjectives that GDELT extracts as bare actor names.
+// When paired with a meaningful type code they can be expanded to a qualified
+// label; without a type code they are demoted to 'Unknown'.
+const NATIONALITY_TO_LABEL = {
+  Israeli:      'Israeli Military',
+  Lebanese:     'Lebanese Armed Forces',
+  Iranian:      'Iranian Forces',
+  Palestinian:  'Palestinian Forces',
+  Ukrainian:    'Ukrainian Forces',
+  Russian:      'Russian Forces',
+  Chinese:      'Chinese Forces',
+  Syrian:       'Syrian Forces',
+  Yemeni:       'Yemeni Forces',
+  Somali:       'Somali Forces',
+  Nigerian:     'Nigerian Forces',
+  Sudanese:     'Sudanese Forces',
+  Libyan:       'Libyan Forces',
+  Afghan:       'Afghan Forces',
+  Iraqi:        'Iraqi Forces',
+  Turkish:      'Turkish Forces',
+  Kurdish:      'Kurdish Forces',
+  Philippine:   'Philippine Forces',
+  Cameroonian:  'Cameroonian Forces',
+  Polish:       'Polish Forces',
+  Malian:       'Malian Forces',
+  Eritrean:     'Eritrean Forces',
+  Ethiopian:    'Ethiopian Forces',
+  Burmese:      'Myanmar Forces',
+  Myanmar:      'Myanmar Forces',
+};
+
+// ---------------------------------------------------------------------------
 // GDELT actor name expansion — common abbreviations and type codes
 // ---------------------------------------------------------------------------
 const ACTOR_EXPANSIONS = {
@@ -381,6 +442,9 @@ const REJECT_URL_SLUGS = [
   // Domestic accidents / weather — not conflict
   'car-accident', 'car-crash', 'traffic-accident', 'plane-crash',
   'hurricane-', 'tornado-', 'wildfire-', 'earthquake-',
+  // Opinion / editorial content — not reporting, not conflict evidence
+  '/opinion/', '/editorial/', '/commentary/', '/op-ed/', '/letters-to-',
+  '/letter-to-editor', '-opinion-', '-editorial-', '-commentary-',
 ];
 
 // ---------------------------------------------------------------------------
@@ -403,6 +467,10 @@ const REJECT_DOMAINS = new Set([
   'hongkongherald.com',
   'londonlovesbusiness.com',
   'modernghana.com',
+  // Small local papers indexed by GDELT — opinion pieces misclassified as conflict
+  'timberjay.com',
+  'thegrayzone.com',
+  'mintpressnews.com',
 ]);
 
 function rejectByUrl(sourceUrl) {
@@ -539,10 +607,61 @@ function normalizeRow(cols, hourBucket = 0) {
   // "child-custody" cannot appear in a legitimate armed-conflict article.
   if (rejectByUrl(sourceUrl)) return null;
 
-  const actor1 = cleanActorName(cols[C.Actor1Name]);
-  const actor2 = cleanActorName(cols[C.Actor2Name]);
+  let actor1 = cleanActorName(cols[C.Actor1Name]);
+  let actor2 = cleanActorName(cols[C.Actor2Name]);
   const actor1_type = String(cols[C.Actor1Type1Code] || '').trim().toUpperCase();
   const actor2_type = String(cols[C.Actor2Type1Code] || '').trim().toUpperCase();
+
+  // ---------------------------------------------------------------------------
+  // Actor quality normalization — applied in priority order before any other
+  // actor-based logic so downstream checks operate on cleaned data.
+  // ---------------------------------------------------------------------------
+
+  // 1. JUD (judicial) type code — court actors are never kinetic participants.
+  //    More reliable than name-matching since GDELT type codes are structured.
+  if (actor1_type === 'JUD' || actor2_type === 'JUD') return null;
+
+  // 2. Soft institutional type pairs (NGO, LAB, MED) — an NGO vs. labor union
+  //    event or NGO with Unknown opponent has no place in a kinetic conflict feed.
+  //    Exception: NGO/LAB paired against a genuine military actor is kept —
+  //    e.g. a war-crimes report where an NGO names a MIL perpetrator.
+  const SOFT_TYPES = new Set(['NGO', 'LAB', 'MED']);
+  const HARD_TYPES = new Set(['MIL', 'REB', 'SPY', 'UAF', 'COP', 'GOV', 'IGO']);
+  const a1Soft = SOFT_TYPES.has(actor1_type);
+  const a2Soft = SOFT_TYPES.has(actor2_type);
+  const a1Hard = HARD_TYPES.has(actor1_type);
+  const a2Hard = HARD_TYPES.has(actor2_type);
+  if (a1Soft && !a2Hard) return null;
+  if (a2Soft && !a1Hard) return null;
+
+  // 3. Demote bare country names with no type code → 'Unknown'.
+  //    GDELT falls back to the country name when it can't resolve an actor.
+  //    Typed country-as-actor (e.g. "Iran [MIL]") is legitimate and kept.
+  if (COUNTRY_NAMES.has(actor1) && !actor1_type) actor1 = 'Unknown';
+  if (COUNTRY_NAMES.has(actor2) && !actor2_type) actor2 = 'Unknown';
+
+  // 4. Demote US states → 'Unknown'. GDELT geo-confuses location with actor.
+  if (US_STATES.has(actor1)) actor1 = 'Unknown';
+  if (US_STATES.has(actor2)) actor2 = 'Unknown';
+
+  // 5. Demote city/location names misclassified as actors (e.g. "London [MIL]").
+  if (CITY_ACTOR_NAMES.has(actor1)) actor1 = 'Unknown';
+  if (CITY_ACTOR_NAMES.has(actor2)) actor2 = 'Unknown';
+
+  // 6. Expand nationality adjectives: typed → qualified label, untyped → Unknown.
+  //    "Israeli [MIL]" → "Israeli Military"; "Lebanese []" → "Unknown".
+  if (NATIONALITY_TO_LABEL[actor1]) {
+    actor1 = actor1_type ? NATIONALITY_TO_LABEL[actor1] : 'Unknown';
+  }
+  if (NATIONALITY_TO_LABEL[actor2]) {
+    actor2 = actor2_type ? NATIONALITY_TO_LABEL[actor2] : 'Unknown';
+  }
+
+  // 7. Collapse same-entity pairs — GDELT sometimes lists the same country on
+  //    both sides (e.g. "Iran [MIL] vs Iran []"). Demote the duplicate.
+  if (actor1 !== 'Unknown' && actor1 === actor2) actor2 = 'Unknown';
+
+  // ---------------------------------------------------------------------------
 
   // Stable-country civilian filter: US/UK/EU etc. with no armed actor types
   // and a Goldstein score above -5 are almost always domestic noise.
@@ -550,24 +669,41 @@ function normalizeRow(cols, hourBucket = 0) {
 
   // Exclude events where actors are clearly non-conflict entities.
   // GDELT extracts these from everyday news about civilians, consumers, etc.
-  // and misclassifies them as conflict actors.
+  // and misclassifies them as conflict actors. Includes plurals (GDELT varies).
   const NOISE_ACTORS = new Set([
     // Civilian roles — never armed-conflict actors
-    'Traveler', 'Tourist', 'Resident', 'Consumer', 'Student', 'Patient',
-    'Voter', 'Taxpayer', 'Employee', 'Worker', 'Driver', 'Farmer',
-    'Immigrant', 'Refugee', 'Visitor', 'Homeowner', 'Tenant', 'Donor',
+    'Traveler', 'Travelers', 'Tourist', 'Tourists',
+    'Resident', 'Residents', 'Consumer', 'Consumers',
+    'Student', 'Students', 'Patient', 'Patients',
+    'Voter', 'Voters', 'Taxpayer', 'Taxpayers',
+    'Employee', 'Employees', 'Worker', 'Workers',
+    'Driver', 'Drivers', 'Farmer', 'Farmers',
+    'Immigrant', 'Immigrants', 'Refugee', 'Refugees',
+    'Visitor', 'Visitors', 'Homeowner', 'Homeowners',
+    'Tenant', 'Tenants', 'Donor', 'Donors',
+    'National', 'Nationals', 'Civilian', 'Civilians',
+    // Vague political/institutional — not conflict actors
+    'Administration', 'Party Member', 'Party Members',
+    'Health Official', 'Health Officials', 'Settlement', 'Settlements',
+    // Military ranks without organizational context
+    'Brigadier General', 'Brigadier Generals',
   ]);
   // Legal/judicial actors — court proceedings are NEVER kinetic conflict.
   // Any event with a legal actor on either side is a misclassification.
   const LEGAL_ACTORS = new Set([
     'Attorney', 'Lawyer', 'Prosecutor', 'Judge', 'Magistrate',
     'Defendant', 'Plaintiff', 'Solicitor', 'Barrister', 'Counsel',
+    'Appeals Court', 'Court',
   ]);
   if (LEGAL_ACTORS.has(actor1) || LEGAL_ACTORS.has(actor2)) return null;
 
   if (NOISE_ACTORS.has(actor1) && NOISE_ACTORS.has(actor2)) return null;
   if (NOISE_ACTORS.has(actor1) && actor2 === 'Unknown') return null;
   if (NOISE_ACTORS.has(actor2) && actor1 === 'Unknown') return null;
+
+  // Reject events where both actors are Unknown after all normalization —
+  // there are no named participants and the event has no analytic value.
+  if (actor1 === 'Unknown' && actor2 === 'Unknown') return null;
 
   const subType = CAMEO_DESC[eventCode] || CAMEO_DESC[String(eventCode).slice(0, 3)] || eventType;
 

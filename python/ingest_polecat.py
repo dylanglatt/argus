@@ -33,7 +33,7 @@ ISO3_TO_NAME = {
     "AFG": "Afghanistan", "ALB": "Albania", "DZA": "Algeria", "AGO": "Angola",
     "ARG": "Argentina", "ARM": "Armenia", "AUS": "Australia", "AUT": "Austria",
     "AZE": "Azerbaijan", "BGD": "Bangladesh", "BLR": "Belarus", "BEL": "Belgium",
-    "BFA": "Burkina Faso", "BDI": "Burundi", "KHM": "Cambodia", "CMR": "Cameroon",
+    "BRA": "Brazil", "BFA": "Burkina Faso", "BDI": "Burundi", "KHM": "Cambodia", "CMR": "Cameroon",
     "CAN": "Canada", "CAF": "Central African Republic", "TCD": "Chad",
     "CHL": "Chile", "CHN": "China", "COL": "Colombia", "COD": "DR Congo",
     "COG": "Republic of Congo", "HRV": "Croatia", "CUB": "Cuba", "CYP": "Cyprus",

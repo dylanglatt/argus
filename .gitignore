@@ -1,3 +1,7 @@
+# Raw + processed data files — large, not source-controlled
+# Download raw files from Harvard Dataverse (POLECAT) and run python/ingest_polecat.py
+data/
+
 # Environment variables (never commit these)
 .env
 

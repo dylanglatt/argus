@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import { fetchConflictEvents, getCacheFetchedAt } from './gdeltFetcher.js';
 import { mockEvents } from './mockData.js';
 import { dismissEvent, undismissEvent, getDismissedIds, filterDismissed } from './feedbackStore.js';
+import { getFirmsData, corroborateEvent, corroborateBatch } from './firmsService.js';
+import { getReportsForCountry } from './reliefwebService.js';
 
 dotenv.config({ override: true });
 
@@ -139,6 +141,80 @@ app.delete('/api/events/:id/dismiss', (req, res) => {
  */
 app.get('/api/feedback/dismissed', (_req, res) => {
   res.json({ dismissed: getDismissedIds(), count: getDismissedIds().length });
+});
+
+// ---------------------------------------------------------------------------
+// NASA FIRMS — satellite thermal anomaly data
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/firms
+ * Returns all cached FIRMS thermal anomalies (for map overlay layer).
+ */
+app.get('/api/firms', async (_req, res) => {
+  try {
+    const data = await getFirmsData();
+    res.json({ data, count: data.length });
+  } catch (err) {
+    console.error('[firms] Route error:', err.message);
+    res.json({ data: [], count: 0 });
+  }
+});
+
+/**
+ * GET /api/firms/corroborate?lat=X&lon=X&date=YYYY-MM-DD
+ * Returns corroboration result for a single event.
+ */
+app.get('/api/firms/corroborate', async (req, res) => {
+  const { lat, lon, date } = req.query;
+  if (!lat || !lon || !date) {
+    return res.status(400).json({ error: 'Missing lat, lon, or date' });
+  }
+  try {
+    const result = await corroborateEvent(parseFloat(lat), parseFloat(lon), date);
+    res.json(result || { corroborated: false, detections: 0, maxFRP: 0, nearestKm: 0 });
+  } catch (err) {
+    console.error('[firms] Corroborate error:', err.message);
+    res.json({ corroborated: false, detections: 0, maxFRP: 0, nearestKm: 0 });
+  }
+});
+
+/**
+ * POST /api/firms/corroborate-batch
+ * Batch corroboration — accepts { events: [{ id, lat, lon, date }] }
+ * Returns { results: { [id]: { corroborated, detections, maxFRP, nearestKm } } }
+ */
+app.post('/api/firms/corroborate-batch', async (req, res) => {
+  const { events: evts } = req.body;
+  if (!Array.isArray(evts)) {
+    return res.status(400).json({ error: 'Expected events array' });
+  }
+  try {
+    const results = await corroborateBatch(evts);
+    res.json({ results });
+  } catch (err) {
+    console.error('[firms] Batch corroborate error:', err.message);
+    res.json({ results: {} });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// ReliefWeb — humanitarian reports for Country Briefs
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/reliefweb/:country
+ * Returns the 5 most recent humanitarian reports for a country.
+ */
+app.get('/api/reliefweb/:country', async (req, res) => {
+  const { country } = req.params;
+  try {
+    const reports = await getReportsForCountry(country);
+    res.json({ data: reports, count: reports.length });
+  } catch (err) {
+    console.error(`[reliefweb] Route error for ${country}:`, err.message);
+    res.json({ data: [], count: 0 });
+  }
 });
 
 app.listen(PORT, () => {

@@ -14,9 +14,12 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: #0a0a0f;
-    color: #e2e4e9;
-    font-family: 'Inter', system-ui, sans-serif;
+    /* Blueprint dark: $dark-app-background-color */
+    background: #111418;
+    color: #f6f7f9;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.28581;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -27,90 +30,104 @@
   }
 
   .font-mono, code {
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
   }
 
-  /* Thin dark scrollbars */
+  /*
+   * Scrollbars — Blueprint dark theme style.
+   * Thin, low-contrast thumb against an invisible track.
+   */
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2a40;
+    background: #383e47;
+    border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a50;
+    background: #404854;
   }
 
   /* Date input dark styling */
   input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.5);
+    filter: invert(0.4);
     cursor: pointer;
   }
 
-  /* Range input */
+  /*
+   * Range input — Blueprint accent color.
+   * Track uses borderInner, thumb uses blue accent.
+   */
   input[type="range"] {
     -webkit-appearance: none;
     height: 2px;
-    background: #1e1e30;
+    background: #383e47;
     outline: none;
     cursor: pointer;
+    border-radius: 1px;
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 10px;
-    height: 10px;
-    background: #9ca3af;
+    width: 12px;
+    height: 12px;
+    background: #4c90f0;
+    border-radius: 50%;
     cursor: pointer;
+    border: 2px solid #252a31;
+    transition: background 0.15s;
   }
   input[type="range"]::-webkit-slider-thumb:hover {
-    background: #e2e4e9;
+    background: #8abbff;
   }
 
-  /* Mapbox popup — sharp, dark, no chrome */
+  /*
+   * Mapbox popup — Blueprint dark panel style.
+   * panelBg background, border color, 2px radius to match component style.
+   */
   .mapboxgl-popup-content {
-    background: #0d0d14 !important;
-    border: 1px solid #1e1e30 !important;
-    border-radius: 0 !important;
+    background: #1c2127 !important;
+    border: 1px solid #2f343c !important;
+    border-radius: 2px !important;
     padding: 0 !important;
-    box-shadow: none !important;
-    color: #e2e4e9 !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+    color: #f6f7f9 !important;
   }
   .mapboxgl-popup-tip {
     display: none !important;
   }
   .mapboxgl-popup-close-button {
-    color: #6b7280 !important;
+    color: #738091 !important;
     font-size: 14px !important;
     padding: 4px 6px !important;
     line-height: 1 !important;
   }
   .mapboxgl-popup-close-button:hover {
-    background: #16161d !important;
-    color: #e2e4e9 !important;
+    background: #2f343c !important;
+    color: #f6f7f9 !important;
   }
 
-  /* Mapbox navigation controls */
+  /* Mapbox navigation controls — Blueprint dark style */
   .mapboxgl-ctrl-group {
-    background: #0d0d14 !important;
-    border: 1px solid #1e1e30 !important;
-    border-radius: 0 !important;
+    background: #1c2127 !important;
+    border: 1px solid #2f343c !important;
+    border-radius: 2px !important;
     box-shadow: none !important;
   }
   .mapboxgl-ctrl-group button {
     background: transparent !important;
-    border-bottom: 1px solid #1e1e30 !important;
+    border-bottom: 1px solid #2f343c !important;
   }
   .mapboxgl-ctrl-group button:last-child {
     border-bottom: none !important;
   }
   .mapboxgl-ctrl-icon {
-    filter: invert(0.7) !important;
+    filter: invert(0.6) !important;
   }
   .mapboxgl-ctrl-group button:hover .mapboxgl-ctrl-icon {
-    filter: invert(1) !important;
+    filter: invert(0.9) !important;
   }
 }

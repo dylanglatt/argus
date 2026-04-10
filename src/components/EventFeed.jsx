@@ -1,38 +1,40 @@
 import React, { useState } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
 
+// Blueprint-style column label
 const COL_LABEL = {
   fontFamily:    'Inter, sans-serif',
   fontSize:      '9px',
-  fontWeight:    700,
+  fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
-  color:         '#4a4a6a',
+  color:         '#738091',    // Blueprint gray2
   padding:       '0 8px',
   whiteSpace:    'nowrap',
 };
 
-const SORT_BTN = (active) => ({
-  background:    active ? '#16161d' : 'transparent',
-  border:        `1px solid ${active ? '#3b82f640' : '#1e1e30'}`,
-  borderRadius:  0,
-  padding:       '2px 7px',
+// Blueprint minimal button style — subtle bg, 2px radius
+const sortBtn = (active) => ({
+  background:    active ? '#252a31' : 'transparent',
+  border:        `1px solid ${active ? '#4c90f040' : '#383e47'}`,
+  borderRadius:  '2px',
+  padding:       '2px 8px',
   fontFamily:    'Inter, sans-serif',
   fontSize:      '8px',
-  fontWeight:    700,
+  fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
-  color:         active ? '#9ca3af' : '#4a4a6a',
+  color:         active ? '#abb3bf' : '#738091',
   cursor:        'pointer',
+  transition:    'all 0.12s',
 });
 
 /**
  * EventFeed — scrollable event table, bottom-left panel.
- * Columns: DATE | TYPE | LOCATION | ACTOR | SCORE | SOURCE
+ * Blueprint dark surface (#1c2127) with inner row borders (#383e47).
  *
- * High-impact events (score ≥ 8) get a red left-edge accent bar.
- * Selected event row is highlighted with a blue accent.
- * Default sort: by impact score (highest first) so meaningful events surface.
+ * High-impact rows (score ≥ 8) carry a red left-edge accent.
+ * Selected row uses a Blueprint primary blue tint.
  */
 export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) {
   const [sortBy, setSortBy] = useState('impact'); // 'impact' | 'date'
@@ -48,56 +50,73 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
       flex:          1,
       display:       'flex',
       flexDirection: 'column',
-      borderRight:   '1px solid #1e1e30',
+      borderRight:   '1px solid #2f343c',
       minWidth:      0,
       overflow:      'hidden',
+      background:    '#1c2127',    // Blueprint panelBg
     }}>
       {/* Panel header */}
       <div style={{
         padding:        '0 12px 0 16px',
-        height:         '36px',
+        height:         '34px',
         display:        'flex',
         alignItems:     'center',
         justifyContent: 'space-between',
-        borderBottom:   '1px solid #1e1e30',
+        borderBottom:   '1px solid #383e47',
         flexShrink:     0,
+        background:     '#1c2127',
       }}>
         <span style={{
           fontFamily:    'Inter, sans-serif',
           fontSize:      '9px',
-          fontWeight:    700,
+          fontWeight:    600,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          color:         '#4a4a6a',
+          color:         '#738091',
         }}>
           EVENT FEED
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <button style={SORT_BTN(sortBy === 'impact')} onClick={() => setSortBy('impact')}>IMPACT</button>
-          <button style={SORT_BTN(sortBy === 'date')}   onClick={() => setSortBy('date')}>DATE</button>
+          <button
+            style={sortBtn(sortBy === 'impact')}
+            onClick={() => setSortBy('impact')}
+            onMouseEnter={(e) => { if (sortBy !== 'impact') { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#abb3bf'; }}}
+            onMouseLeave={(e) => { if (sortBy !== 'impact') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#738091'; }}}
+          >
+            IMPACT
+          </button>
+          <button
+            style={sortBtn(sortBy === 'date')}
+            onClick={() => setSortBy('date')}
+            onMouseEnter={(e) => { if (sortBy !== 'date') { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#abb3bf'; }}}
+            onMouseLeave={(e) => { if (sortBy !== 'date') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#738091'; }}}
+          >
+            DATE
+          </button>
           <span style={{
-            fontFamily:  'JetBrains Mono, monospace',
-            fontSize:    '10px',
-            color:       '#4a4a6a',
-            marginLeft:  '6px',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize:   '10px',
+            color:      '#5f6b7c',
+            marginLeft: '6px',
           }}>
             {events.length.toLocaleString()}
           </span>
         </div>
       </div>
 
-      {/* Column headers */}
+      {/* Column headers — Blueprint table head style */}
       <div style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 1fr 1fr 38px 26px 22px',
+        gridTemplateColumns: '4px 90px 22px 28px 1fr 1fr 38px 26px 22px',
         height:              '24px',
         alignItems:          'center',
-        borderBottom:        '1px solid #1e1e30',
-        background:          '#0a0a0f',
+        borderBottom:        '1px solid #383e47',
+        background:          '#1c2127',
         flexShrink:          0,
       }}>
         <span />
         <span style={COL_LABEL}>DATE</span>
+        <span />
         <span />
         <span style={COL_LABEL}>LOCATION</span>
         <span style={COL_LABEL}>ACTOR</span>
@@ -116,7 +135,7 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
             height:         '100%',
             fontFamily:     'Inter, sans-serif',
             fontSize:       '11px',
-            color:          '#4a4a5a',
+            color:          '#5f6b7c',
             letterSpacing:  '0.05em',
           }}>
             NO EVENTS MATCH CURRENT PARAMETERS
@@ -141,24 +160,27 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
   const [hovered, setHovered] = React.useState(false);
   const eventType = EVENT_TYPES[event.event_type];
 
-  const score = event.impact_score ?? 0;
+  const score        = event.impact_score ?? 0;
   const isHighImpact = score >= 8;
   const isMedImpact  = score >= 5;
 
+  // Blueprint intent colors for score
   const impactColor =
-    isHighImpact ? '#ef4444' :
-    isMedImpact  ? '#eab308' :
-                   '#4a4a6a';
+    isHighImpact ? '#e76a6e' :  // Blueprint red4
+    isMedImpact  ? '#fbb360' :  // Blueprint orange5
+                   '#5f6b7c';   // Blueprint gray1
 
+  // Left accent bar color
   const accentColor =
-    isSelected    ? '#3b82f6' :
-    isHighImpact  ? '#ef444480' :
+    isSelected   ? '#4c90f0' :   // Blueprint blue4
+    isHighImpact ? '#e76a6e80' : // Blueprint red4 @ 50%
     'transparent';
 
+  // Row background — Blueprint table row hover pattern
   const bgColor =
-    isSelected  ? '#16213e' :
-    hovered     ? '#16161d' :
-    isHighImpact ? '#1a0e0e' :
+    isSelected   ? '#215db020' :  // Blueprint blue2 @ 12%
+    hovered      ? '#2f343c' :    // Blueprint dark-gray3 hover
+    isHighImpact ? '#2a1a1a' :    // subtle red tint for high impact
     'transparent';
 
   return (
@@ -168,10 +190,10 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 1fr 1fr 38px 26px 22px',
+        gridTemplateColumns: '4px 90px 22px 28px 1fr 1fr 38px 26px 22px',
         minHeight:           '34px',
         alignItems:          'center',
-        borderBottom:        '1px solid #1e1e3066',
+        borderBottom:        `1px solid #383e4766`,  // Blueprint dark-gray4 at 40%
         background:          bgColor,
         cursor:              'pointer',
         transition:          'background 0.1s',
@@ -179,42 +201,62 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
     >
       {/* Left accent bar */}
       <div style={{
-        width:      '4px',
+        width:      '3px',
         height:     '100%',
         minHeight:  '34px',
         background: accentColor,
         transition: 'background 0.15s',
       }} />
 
-      {/* Date */}
+      {/* Date — Blueprint monospace dim */}
       <span style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize:   '10px',
-        color:      '#8a8fa8',
+        color:      '#5f6b7c',   // Blueprint gray1
         padding:    '0 6px',
         whiteSpace: 'nowrap',
       }}>
         {event.event_date}
       </span>
 
-      {/* Type diamond */}
+      {/* Type indicator — rotated diamond */}
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{
           width:      '5px',
           height:     '5px',
-          background: eventType?.color || '#9ca3af',
+          background: eventType?.color || '#738091',
           transform:  'rotate(45deg)',
           display:    'inline-block',
           flexShrink: 0,
         }} />
       </span>
 
-      {/* Location */}
+      {/* SAT corroboration badge */}
+      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {event.satellite_corroborated && (
+          <span style={{
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '7px',
+            fontWeight:    700,
+            letterSpacing: '0.04em',
+            color:         '#32a467',
+            background:    '#32a4671a',
+            border:        '1px solid #32a46730',
+            borderRadius:  '2px',
+            padding:       '1px 3px',
+            lineHeight:    1,
+          }}>
+            SAT
+          </span>
+        )}
+      </span>
+
+      {/* Location — primary text */}
       <span style={{
         fontFamily:   'Inter, sans-serif',
         fontSize:     '11px',
         fontWeight:   500,
-        color:        '#e2e4e9',
+        color:        '#f6f7f9',   // Blueprint light-gray5
         padding:      '0 8px',
         overflow:     'hidden',
         textOverflow: 'ellipsis',
@@ -223,11 +265,11 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         {event.location}
       </span>
 
-      {/* Actor */}
+      {/* Actor — secondary text */}
       <span style={{
         fontFamily:   'Inter, sans-serif',
         fontSize:     '10px',
-        color:        event.actor1 === 'Unknown' ? '#4a4a5a' : '#9ca3af',
+        color:        event.actor1 === 'Unknown' ? '#5f6b7c' : '#abb3bf',
         padding:      '0 8px',
         overflow:     'hidden',
         textOverflow: 'ellipsis',
@@ -241,12 +283,12 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
 
       {/* Impact score */}
       <span style={{
-        fontFamily:  'JetBrains Mono, monospace',
-        fontSize:    '11px',
-        fontWeight:  600,
-        color:       impactColor,
-        padding:     '0 4px',
-        textAlign:   'right',
+        fontFamily:    'JetBrains Mono, monospace',
+        fontSize:      '11px',
+        fontWeight:    600,
+        color:         impactColor,
+        padding:       '0 4px',
+        textAlign:     'right',
         letterSpacing: '0.02em',
       }}>
         {score}
@@ -254,12 +296,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
 
       {/* Source link */}
       <span
-        style={{
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-          paddingRight:   '4px',
-        }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingRight: '4px' }}
         onClick={(e) => e.stopPropagation()}
       >
         {event.source_url ? (
@@ -271,28 +308,24 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
             style={{
               fontFamily:     'Inter, sans-serif',
               fontSize:       '11px',
-              color:          '#3b5a8a',
+              color:          '#215db0',   // Blueprint blue2
               lineHeight:     1,
               textDecoration: 'none',
               transition:     'color 0.1s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#3b82f6')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#3b5a8a')}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#4c90f0')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#215db0')}
           >
             ↗
           </a>
         ) : (
-          <span style={{ color: '#1e1e30', fontSize: '11px' }}>↗</span>
+          <span style={{ color: '#2f343c', fontSize: '11px' }}>↗</span>
         )}
       </span>
 
-      {/* Dismiss button — visible on hover only */}
+      {/* Dismiss — hover-reveal */}
       <span
-        style={{
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-        }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => e.stopPropagation()}
       >
         {onDismiss && hovered ? (
@@ -305,20 +338,18 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
               cursor:       'pointer',
               fontFamily:   'Inter, sans-serif',
               fontSize:     '11px',
-              color:        '#4a4a6a',
+              color:        '#738091',
               lineHeight:   1,
               padding:      '2px 3px',
               borderRadius: '2px',
               transition:   'color 0.1s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#4a4a6a')}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#e76a6e')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#738091')}
           >
             ✕
           </button>
-        ) : (
-          <span />
-        )}
+        ) : <span />}
       </span>
     </div>
   );

@@ -1,78 +1,93 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
 
 const LABEL_STYLE = {
   fontFamily:    'Inter, sans-serif',
   fontSize:      '9px',
-  fontWeight:    700,
+  fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color:         '#4a4a6a',
+  color:         '#738091',    // Blueprint gray2
 };
 
 /**
  * CountryBrief
  * ------------
  * Intelligence summary panel for a selected country. Overlays the FilterPanel.
- *
- * Displays:
- *   - Total events in the available data window
- *   - Avg Goldstein Scale (conflict pressure)
- *   - Trend direction: recent 36h vs prior 36h (deteriorating / stable / stabilizing)
- *   - Most active actor
- *   - Event type breakdown with proportional bars
- *
- * Trend is computed by comparing the Goldstein average for the most recent
- * half of the data window vs the prior half. A more negative recent average
- * means conflict is intensifying ("DETERIORATING").
+ * Blueprint dark panel: panelBg surface, metric cards using elevatedBg.
  */
+function relativeDate(dateStr) {
+  if (!dateStr) return '';
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  if (isNaN(then)) return '';
+  const diffMs = now - then;
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'today';
+  if (days === 1) return '1d ago';
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? '1mo ago' : `${months}mo ago`;
+}
+
 export function CountryBrief({ country, events, onClose }) {
+  const [reports, setReports]       = useState(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
+
+  // Fetch ReliefWeb reports when country changes
+  useEffect(() => {
+    if (!country) return;
+    let cancelled = false;
+    setReports(null);
+    setReportsLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/reliefweb/${encodeURIComponent(country)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!cancelled) setReports(json.data || []);
+      } catch (err) {
+        console.warn('[CountryBrief] ReliefWeb fetch failed:', err.message);
+        if (!cancelled) setReports([]);
+      } finally {
+        if (!cancelled) setReportsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [country]);
+
   const brief = useMemo(() => {
     if (!country || !events || events.length === 0) return null;
 
     const countryEvents = events.filter((e) => e.country === country);
     if (countryEvents.length === 0) return null;
 
-    // Split into recent / prior halves for trend
-    const sorted = [...countryEvents].sort((a, b) =>
-      a.event_date < b.event_date ? -1 : 1
-    );
-    const mid        = Math.floor(sorted.length / 2);
-    const priorHalf  = sorted.slice(0, mid);
+    const sorted    = [...countryEvents].sort((a, b) => a.event_date < b.event_date ? -1 : 1);
+    const mid       = Math.floor(sorted.length / 2);
+    const priorHalf = sorted.slice(0, mid);
     const recentHalf = sorted.slice(mid);
 
     const avg = (arr) =>
-      arr.length === 0
-        ? 0
+      arr.length === 0 ? 0
         : arr.reduce((s, e) => s + (e.goldstein_scale || 0), 0) / arr.length;
 
-    const recentAvg = avg(recentHalf);
-    const priorAvg  = avg(priorHalf);
-    const trendDiff = recentAvg - priorAvg; // negative = more conflict recently
+    const trendDiff = avg(recentHalf) - avg(priorHalf);
 
-    // Actor frequency
     const actorCounts = {};
     countryEvents.forEach((e) => {
-      if (e.actor1 && e.actor1 !== 'Unknown')
-        actorCounts[e.actor1] = (actorCounts[e.actor1] || 0) + 1;
-      if (e.actor2 && e.actor2 !== 'Unknown')
-        actorCounts[e.actor2] = (actorCounts[e.actor2] || 0) + 1;
+      if (e.actor1 && e.actor1 !== 'Unknown') actorCounts[e.actor1] = (actorCounts[e.actor1] || 0) + 1;
+      if (e.actor2 && e.actor2 !== 'Unknown') actorCounts[e.actor2] = (actorCounts[e.actor2] || 0) + 1;
     });
     const topActors = Object.entries(actorCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 2)
-      .map(([name]) => name);
+      .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([name]) => name);
 
-    // Event type breakdown
     const typeCounts = {};
     countryEvents.forEach((e) => {
-      if (e.event_type)
-        typeCounts[e.event_type] = (typeCounts[e.event_type] || 0) + 1;
+      if (e.event_type) typeCounts[e.event_type] = (typeCounts[e.event_type] || 0) + 1;
     });
     const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
 
-    // Date window label
-    const dates = countryEvents.map((e) => e.event_date).sort();
+    const dates       = countryEvents.map((e) => e.event_date).sort();
     const windowStart = dates[0];
     const windowEnd   = dates[dates.length - 1];
 
@@ -89,22 +104,21 @@ export function CountryBrief({ country, events, onClose }) {
 
   if (!brief) return null;
 
-  // Goldstein color (negative = more conflict = warmer)
+  // Blueprint intent colors for Goldstein
   const goldsteinColor =
-    brief.avgGoldstein < -5 ? '#ef4444' :
-    brief.avgGoldstein < -2 ? '#f97316' :
-    brief.avgGoldstein <  0 ? '#eab308' :
-                               '#10b981';
+    brief.avgGoldstein < -5 ? '#e76a6e' :
+    brief.avgGoldstein < -2 ? '#ec9a3c' :
+    brief.avgGoldstein <  0 ? '#fbb360' :
+                               '#32a467';
 
-  // Trend label and color
   const trendLabel =
     brief.trendDiff < -0.5 ? 'DETERIORATING' :
     brief.trendDiff >  0.5 ? 'STABILIZING'   :
                               'STABLE';
   const trendColor =
-    brief.trendDiff < -0.5 ? '#ef4444' :
-    brief.trendDiff >  0.5 ? '#10b981' :
-                              '#eab308';
+    brief.trendDiff < -0.5 ? '#e76a6e' :
+    brief.trendDiff >  0.5 ? '#32a467' :
+                              '#fbb360';
   const trendArrow =
     brief.trendDiff < -0.5 ? '↓' :
     brief.trendDiff >  0.5 ? '↑' :
@@ -114,8 +128,8 @@ export function CountryBrief({ country, events, onClose }) {
     <div style={{
       position:      'absolute',
       inset:         0,
-      background:    '#0a0a0f',
-      borderRight:   '1px solid #1e1e30',
+      background:    '#1c2127',    // Blueprint panelBg
+      borderRight:   '1px solid #2f343c',
       overflowY:     'auto',
       zIndex:        20,
       display:       'flex',
@@ -130,7 +144,7 @@ export function CountryBrief({ country, events, onClose }) {
           justifyContent: 'space-between',
           marginBottom:   '14px',
           paddingBottom:  '10px',
-          borderBottom:   '1px solid #1e1e30',
+          borderBottom:   '1px solid #383e47',
         }}>
           <div>
             <div style={{ ...LABEL_STYLE, marginBottom: '4px' }}>COUNTRY BRIEF</div>
@@ -138,7 +152,7 @@ export function CountryBrief({ country, events, onClose }) {
               fontFamily:    'Inter, sans-serif',
               fontSize:      '15px',
               fontWeight:    700,
-              color:         '#e2e4e9',
+              color:         '#f6f7f9',
               letterSpacing: '0.04em',
             }}>
               {country.toUpperCase()}
@@ -146,54 +160,56 @@ export function CountryBrief({ country, events, onClose }) {
             <div style={{
               fontFamily: 'JetBrains Mono, monospace',
               fontSize:   '9px',
-              color:      '#4a4a6a',
+              color:      '#5f6b7c',
               marginTop:  '3px',
             }}>
               {brief.windowStart} → {brief.windowEnd}
             </div>
           </div>
+
+          {/* Blueprint minimal back button */}
           <button
             onClick={onClose}
             style={{
-              background:    'transparent',
-              border:        '1px solid #1e1e30',
-              color:         '#4a4a6a',
-              padding:       '4px 8px',
+              background:    '#252a31',
+              border:        '1px solid #383e47',
+              borderRadius:  '2px',
+              color:         '#738091',
+              padding:       '4px 10px',
               cursor:        'pointer',
               fontFamily:    'Inter, sans-serif',
               fontSize:      '9px',
-              fontWeight:    700,
+              fontWeight:    600,
               letterSpacing: '0.06em',
               flexShrink:    0,
+              transition:    'all 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#e2e4e9'; e.currentTarget.style.borderColor = '#3a3a50'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#4a4a6a'; e.currentTarget.style.borderColor = '#1e1e30'; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color       = '#f6f7f9';
+              e.currentTarget.style.background  = '#2f343c';
+              e.currentTarget.style.borderColor = '#404854';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color       = '#738091';
+              e.currentTarget.style.background  = '#252a31';
+              e.currentTarget.style.borderColor = '#383e47';
+            }}
           >
             ← BACK
           </button>
         </div>
 
-        {/* Key metrics grid */}
+        {/* Key metrics — Blueprint card grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '14px' }}>
-          <Metric label="TOTAL EVENTS"   value={brief.totalEvents}                               mono />
+          <Metric label="TOTAL EVENTS"   value={brief.totalEvents} mono />
           <Metric
             label="AVG GOLDSTEIN"
             value={`${brief.avgGoldstein > 0 ? '+' : ''}${brief.avgGoldstein}`}
-            mono
-            valueColor={goldsteinColor}
+            mono valueColor={goldsteinColor}
             tooltip="Goldstein Scale avg. Negative = conflict pressure."
           />
-          <Metric
-            label="TREND"
-            value={`${trendArrow} ${trendLabel}`}
-            valueColor={trendColor}
-            small
-          />
-          <Metric
-            label="TOP ACTOR"
-            value={brief.topActors[0] || 'Unknown'}
-            small
-          />
+          <Metric label="TREND" value={`${trendArrow} ${trendLabel}`} valueColor={trendColor} small />
+          <Metric label="TOP ACTOR" value={brief.topActors[0] || 'Unknown'} small />
         </div>
 
         {brief.topActors.length > 1 && (
@@ -203,9 +219,9 @@ export function CountryBrief({ country, events, onClose }) {
               <div key={actor} style={{
                 fontFamily:   'Inter, sans-serif',
                 fontSize:     '11px',
-                color:        '#9ca3af',
+                color:        '#abb3bf',
                 padding:      '4px 8px',
-                borderLeft:   '2px solid #1e1e30',
+                borderLeft:   '2px solid #383e47',
                 marginBottom: '3px',
               }}>
                 {actor}
@@ -214,7 +230,7 @@ export function CountryBrief({ country, events, onClose }) {
           </div>
         )}
 
-        <div style={{ borderTop: '1px solid #1e1e30', marginBottom: '14px' }} />
+        <div style={{ borderTop: '1px solid #383e47', marginBottom: '14px' }} />
 
         {/* Event type breakdown */}
         <div style={{ ...LABEL_STYLE, marginBottom: '10px' }}>EVENT BREAKDOWN</div>
@@ -233,77 +249,154 @@ export function CountryBrief({ country, events, onClose }) {
                   <div style={{
                     width:      '5px',
                     height:     '5px',
-                    background: typeInfo?.color || '#9ca3af',
+                    background: typeInfo?.color || '#738091',
                     transform:  'rotate(45deg)',
                     flexShrink: 0,
                   }} />
-                  <span style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize:   '10px',
-                    color:      '#9ca3af',
-                  }}>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#abb3bf' }}>
                     {type.split('/')[0].trim()}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize:   '9px',
-                    color:      '#4a4a6a',
-                  }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#738091' }}>
                     {pct}%
                   </span>
-                  <span style={{
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize:   '9px',
-                    color:      '#2a2a3a',
-                  }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#383e47' }}>
                     {count}
                   </span>
                 </div>
               </div>
-              {/* Proportional bar */}
-              <div style={{ height: '2px', background: '#1e1e30', position: 'relative' }}>
+              <div style={{ height: '2px', background: '#383e47', position: 'relative', borderRadius: '1px' }}>
                 <div style={{
-                  position:   'absolute',
-                  top:        0,
-                  left:       0,
-                  height:     '100%',
-                  width:      `${pct}%`,
-                  background: typeInfo?.color || '#9ca3af',
-                  opacity:    0.65,
+                  position:     'absolute',
+                  top:          0,
+                  left:         0,
+                  height:       '100%',
+                  width:        `${pct}%`,
+                  background:   typeInfo?.color || '#738091',
+                  opacity:      0.75,
+                  borderRadius: '1px',
                 }} />
               </div>
             </div>
           );
         })}
 
+        {/* Humanitarian reports — ReliefWeb */}
+        <div style={{ borderTop: '1px solid #383e47', marginTop: '6px', marginBottom: '14px' }} />
+        <div style={{ ...LABEL_STYLE, marginBottom: '10px' }}>HUMANITARIAN REPORTS</div>
+
+        {reportsLoading && (
+          <div style={{
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '9px',
+            color:         '#5f6b7c',
+            letterSpacing: '0.05em',
+            marginBottom:  '10px',
+          }}>
+            LOADING...
+          </div>
+        )}
+
+        {!reportsLoading && reports && reports.length === 0 && (
+          <div style={{
+            fontFamily:   'Inter, sans-serif',
+            fontSize:     '10px',
+            color:        '#5f6b7c',
+            marginBottom: '10px',
+          }}>
+            No recent reports
+          </div>
+        )}
+
+        {!reportsLoading && reports && reports.length > 0 && reports.map((report) => (
+          <a
+            key={report.id}
+            href={report.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display:        'block',
+              padding:        '7px 8px',
+              marginBottom:   '4px',
+              background:     '#252a31',
+              border:         '1px solid #383e47',
+              borderRadius:   '2px',
+              textDecoration: 'none',
+              transition:     'border-color 0.15s, background 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#4c90f0';
+              e.currentTarget.style.background  = '#1e3048';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#383e47';
+              e.currentTarget.style.background  = '#252a31';
+            }}
+          >
+            <div style={{
+              fontFamily:      'Inter, sans-serif',
+              fontSize:        '10px',
+              color:           '#abb3bf',
+              lineHeight:      1.4,
+              overflow:        'hidden',
+              textOverflow:    'ellipsis',
+              whiteSpace:      'nowrap',
+              marginBottom:    '3px',
+            }}>
+              {report.title.length > 80 ? report.title.slice(0, 80) + '...' : report.title}
+            </div>
+            <div style={{
+              display:    'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <span style={{
+                fontFamily: 'Inter, sans-serif',
+                fontSize:   '9px',
+                color:      '#738091',
+              }}>
+                {report.source}
+              </span>
+              <span style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize:   '9px',
+                color:      '#5f6b7c',
+              }}>
+                {relativeDate(report.date)}
+              </span>
+            </div>
+          </a>
+        ))}
+
       </div>
     </div>
   );
 }
 
+// Blueprint-style metric card
 function Metric({ label, value, mono, valueColor, small, tooltip }) {
   return (
     <div
       title={tooltip}
       style={{
-        background:  '#0d0d14',
-        border:      '1px solid #1e1e30',
-        padding:     '8px 10px',
-        cursor:      tooltip ? 'help' : 'default',
+        background:   '#252a31',    // Blueprint elevatedBg
+        border:       '1px solid #383e47',
+        borderRadius: '2px',
+        padding:      '8px 10px',
+        cursor:       tooltip ? 'help' : 'default',
       }}
     >
       <div style={{ ...LABEL_STYLE, marginBottom: '4px' }}>{label}</div>
       <div style={{
-        fontFamily: mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
-        fontSize:   small ? '10px' : '13px',
-        fontWeight: 600,
-        color:      valueColor || '#e2e4e9',
-        lineHeight: 1.2,
-        overflow:   'hidden',
+        fontFamily:   mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
+        fontSize:     small ? '10px' : '13px',
+        fontWeight:   600,
+        color:        valueColor || '#f6f7f9',
+        lineHeight:   1.2,
+        overflow:     'hidden',
         textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
+        whiteSpace:   'nowrap',
       }}>
         {value}
       </div>

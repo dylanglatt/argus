@@ -51,8 +51,8 @@ function canAutoPass(event) {
 
   return (
     hasArmedActor &&
-    event.goldstein_scale <= -7 &&
-    event.num_sources >= 10
+    event.goldstein_scale <= -5 &&
+    event.num_sources >= 5
   );
 }
 
@@ -81,7 +81,7 @@ const PROMPT_TEMPLATE = `You are a conflict analyst filtering events for a milit
 The ONLY question you must answer: does this event describe KINETIC VIOLENCE in a military or armed-group context?
 
 YES means ALL of the following are true:
-1. Weapons were used OR people were physically killed/injured
+1. Weapons were used, people were physically killed/injured, OR an armed force conducted a military operation (territory seizure, incursion, blockade, shelling position, troop deployment into contested area, hostage-taking, abduction by armed group)
 2. The perpetrators are military forces, armed rebel groups, paramilitary, terrorists, or state security forces
 3. The context is armed conflict, war, insurgency, or terrorism — NOT domestic crime, cultural controversy, or politics
 
@@ -183,7 +183,7 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
   const dropped      = toReview.length - reviewSlice.length;
 
   console.log(
-    `[haiku] ${autoPassed.length} auto-passed (armed actors + Goldstein ≤ -7 + ≥10 sources) |` +
+    `[haiku] ${autoPassed.length} auto-passed (armed actors + Goldstein ≤ -5 + ≥5 sources) |` +
     ` reviewing ${reviewSlice.length}/${toReview.length}` +
     (dropped > 0 ? ` | ${dropped} dropped (over cap — increase maxReview if needed)` : '')
   );

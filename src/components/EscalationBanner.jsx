@@ -3,13 +3,8 @@ import React, { useMemo } from 'react';
 /**
  * EscalationBanner
  * ----------------
- * Persistent alert strip above the map. Proactively surfaces the top
- * escalating regions — the analyst sees it without any interaction.
- *
- * Compares yesterday vs day-before-yesterday per country (same logic as
- * HotZones) and shows the top 3 results inline. Clicking a region name
- * opens its Country Brief.
- *
+ * Persistent alert strip surfacing top escalating regions.
+ * Blueprint danger callout style: dark red bg, red4 text and borders.
  * Hidden entirely when no regions meet the escalation threshold.
  */
 export function EscalationBanner({ events, onSelectCountry }) {
@@ -17,8 +12,8 @@ export function EscalationBanner({ events, onSelectCountry }) {
     if (!events || events.length === 0) return [];
 
     const now          = new Date();
-    const yesterdayStr = new Date(now - 1 * 86400000).toISOString().slice(0, 10);
-    const dayBeforeStr = new Date(now - 2 * 86400000).toISOString().slice(0, 10);
+    const yesterdayStr = new Date(now - 86400000).toISOString().slice(0, 10);
+    const dayBeforeStr = new Date(now - 172800000).toISOString().slice(0, 10);
 
     const recentCounts = {};
     const priorCounts  = {};
@@ -49,84 +44,73 @@ export function EscalationBanner({ events, onSelectCountry }) {
 
   return (
     <div style={{
-      height:          '28px',
-      minHeight:       '28px',
-      background:      '#1a0808',
-      borderBottom:    '1px solid #ef444430',
-      display:         'flex',
-      alignItems:      'center',
-      padding:         '0 14px',
-      gap:             '16px',
-      flexShrink:      0,
-      overflow:        'hidden',
+      height:       '28px',
+      minHeight:    '28px',
+      background:   '#2a1518',          // dark red — Blueprint danger surface tint
+      borderBottom: '1px solid #e76a6e30',
+      display:      'flex',
+      alignItems:   'center',
+      padding:      '0 14px',
+      gap:          '16px',
+      flexShrink:   0,
+      overflow:     'hidden',
     }}>
       {/* Label */}
-      <div style={{
-        display:    'flex',
-        alignItems: 'center',
-        gap:        '6px',
-        flexShrink: 0,
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
         <div style={{
           width:        '5px',
           height:       '5px',
           borderRadius: '50%',
-          background:   '#ef4444',
-          boxShadow:    '0 0 6px #ef4444',
+          background:   '#e76a6e',       // Blueprint red4
+          boxShadow:    '0 0 6px #e76a6e80',
         }} />
         <span style={{
           fontFamily:    'Inter, sans-serif',
           fontSize:      '9px',
-          fontWeight:    700,
+          fontWeight:    600,
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
-          color:         '#ef4444',
+          color:         '#e76a6e',
         }}>
           ESCALATION ALERT
         </span>
       </div>
 
-      {/* Divider */}
-      <div style={{ width: '1px', height: '14px', background: '#ef444430', flexShrink: 0 }} />
+      <div style={{ width: '1px', height: '14px', background: '#e76a6e30', flexShrink: 0 }} />
 
       {/* Region pills */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
         {hotZones.map(({ country, pctChange }, i) => (
           <React.Fragment key={country}>
             {i > 0 && (
-              <span style={{ color: '#ef444430', fontSize: '10px', flexShrink: 0 }}>·</span>
+              <span style={{ color: '#e76a6e30', fontSize: '10px', flexShrink: 0 }}>·</span>
             )}
             <button
               onClick={() => onSelectCountry(country)}
               title={`Open ${country} brief`}
               style={{
-                background:    'transparent',
-                border:        'none',
-                padding:       0,
-                cursor:        'pointer',
-                display:       'flex',
-                alignItems:    'center',
-                gap:           '5px',
-                flexShrink:    0,
+                background: 'transparent',
+                border:     'none',
+                padding:    0,
+                cursor:     'pointer',
+                display:    'flex',
+                alignItems: 'center',
+                gap:        '5px',
+                flexShrink: 0,
               }}
             >
-              <span style={{
-                fontFamily:  'Inter, sans-serif',
-                fontSize:    '11px',
-                fontWeight:  600,
-                color:       '#e2e4e9',
-                transition:  'color 0.1s',
-              }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#e2e4e9')}
+              <span
+                style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', fontWeight: 600, color: '#f6f7f9', transition: 'color 0.1s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#e76a6e')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#f6f7f9')}
               >
                 {country}
               </span>
               <span style={{
-                fontFamily:  'JetBrains Mono, monospace',
-                fontSize:    '10px',
-                fontWeight:  700,
-                color:       pctChange >= 100 ? '#ef4444' : '#f97316',
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize:   '10px',
+                fontWeight: 700,
+                color:      pctChange >= 100 ? '#e76a6e' : '#ec9a3c',  // Blueprint red4 / orange4
               }}>
                 ↑{pctChange}%
               </span>
@@ -135,7 +119,6 @@ export function EscalationBanner({ events, onSelectCountry }) {
         ))}
       </div>
 
-      {/* Right: 24H DELTA label */}
       <span style={{
         marginLeft:    'auto',
         fontFamily:    'Inter, sans-serif',
@@ -143,7 +126,7 @@ export function EscalationBanner({ events, onSelectCountry }) {
         fontWeight:    600,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
-        color:         '#ef444450',
+        color:         '#e76a6e40',
         flexShrink:    0,
       }}>
         24H ΔDELTA

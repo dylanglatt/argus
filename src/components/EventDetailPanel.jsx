@@ -128,6 +128,54 @@ export function EventDetailPanel({ event, onClose }) {
           {event.country && event.country !== event.location ? ` · ${event.country}` : ''}
         </div>
 
+        {/* SAT corroboration callout — shown when FIRMS data confirms event */}
+        {event.satellite_corroborated && (
+          <div style={{
+            display:      'flex',
+            alignItems:   'center',
+            gap:          '10px',
+            marginBottom: '10px',
+            padding:      '10px 12px',
+            background:   '#32a4670d',
+            border:       '1px solid #32a46725',
+            borderLeft:   '3px solid #32a467',
+            borderRadius: '2px',
+          }}>
+            <div>
+              <div style={{
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '9px',
+                fontWeight:    600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color:         '#32a467',
+                marginBottom:  '2px',
+              }}>
+                SAT CORROBORATED
+              </div>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize:   '10px',
+                color:      '#abb3bf',
+                lineHeight: 1.5,
+              }}>
+                {event.firms_detections} thermal detection{event.firms_detections !== 1 ? 's' : ''} within 25km
+              </div>
+            </div>
+            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+              <div style={{ ...metaLabelStyle, marginBottom: '2px' }}>MAX FRP</div>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize:   '13px',
+                fontWeight: 600,
+                color:      '#ec9a3c',
+              }}>
+                {event.firms_max_frp}<span style={{ fontSize: '9px', color: '#5f6b7c' }}> MW</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Impact callout — Blueprint callout pattern */}
         <div style={{
           display:      'flex',

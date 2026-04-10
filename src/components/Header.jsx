@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * Header — 52px fixed bar.
- * Top accent line = conflict heat (red when avg Goldstein is deeply negative).
- * Left:  ARGUS wordmark + live indicator.
- * Right: live stats (events, sources, countries, avg tone, zulu time).
+ * Header — 50px fixed bar (Blueprint navbar height).
+ *
+ * Blueprint dark navbar:
+ *   - Surface: panelBg (#1c2127) — distinct from page background
+ *   - Bottom border: border (#2f343c)
+ *   - Top accent: conflict heat indicator (Blueprint intent colors)
+ *
+ * Left:  ARGUS wordmark + live indicator + map focus toggle
+ * Right: live stats (events, sources, countries, Goldstein, trend, refresh, Zulu)
  */
 export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
   const [zuluTime,   setZuluTime]   = useState('');
@@ -33,119 +38,132 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
     return () => clearInterval(id);
   }, [fetchedAt]);
 
-  // Pulse the live dot every 2s
   useEffect(() => {
     const id = setInterval(() => setPulse((p) => !p), 2000);
     return () => clearInterval(id);
   }, []);
 
-  // Avg Goldstein tone → header accent color + value display
+  // Goldstein tone → Blueprint intent color
   const avgG = stats?.avgGoldstein ?? 0;
   const toneColor =
-    avgG < -5 ? '#ef4444' :
-    avgG < -2 ? '#f97316' :
-    avgG <  0 ? '#eab308' :
-                '#10b981';
+    avgG < -5 ? '#e76a6e' :  // Blueprint red4
+    avgG < -2 ? '#ec9a3c' :  // Blueprint orange4
+    avgG <  0 ? '#fbb360' :  // Blueprint orange5
+                '#32a467';   // Blueprint green4
   const toneStr = `${avgG > 0 ? '+' : ''}${avgG.toFixed(1)}`;
 
-  // Top accent gradient: color based on threat posture
-  const accentColor = avgG < -3 ? '#ef4444' : avgG < 0 ? '#f97316' : '#1e1e30';
+  // Top accent line: conflict heat
+  const accentColor =
+    avgG < -3 ? '#e76a6e' :
+    avgG <  0 ? '#ec9a3c' :
+                '#2f343c';   // neutral — just a border when calm
 
   return (
     <div style={{
-      height:        '52px',
-      minHeight:     '52px',
-      background:    '#0a0a0f',
-      borderBottom:  '1px solid #1e1e30',
-      borderTop:     `2px solid ${accentColor}`,
-      display:       'flex',
-      alignItems:    'center',
+      height:         '50px',
+      minHeight:      '50px',
+      background:     '#1c2127',          // Blueprint panelBg — distinct from page
+      borderBottom:   '1px solid #2f343c',
+      borderTop:      `2px solid ${accentColor}`,
+      display:        'flex',
+      alignItems:     'center',
       justifyContent: 'space-between',
-      padding:       '0 16px',
-      flexShrink:    0,
+      padding:        '0 16px',
+      flexShrink:     0,
     }}>
       {/* Left: wordmark + live indicator + focus toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Argus eye+reticle icon */}
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="22" height="22" style={{ flexShrink: 0 }}>
-          <line x1="100" y1="0"   x2="100" y2="200" stroke="#ffffff" strokeWidth="2.8"/>
-          <line x1="0"   y1="100" x2="200" y2="100" stroke="#ffffff" strokeWidth="2.8"/>
-          <circle cx="100" cy="100" r="82" fill="none" stroke="#ffffff" strokeWidth="3.5"/>
-          <path d="M 18,100 A 100,100 0 0,1 182,100" fill="none" stroke="#ffffff" strokeWidth="3.5"/>
-          <path d="M 182,100 A 100,100 0 0,1 18,100"  fill="none" stroke="#ffffff" strokeWidth="3.5"/>
-          <circle cx="100" cy="100" r="28" fill="none" stroke="#ffffff" strokeWidth="3.5"/>
-          <circle cx="100" cy="100" r="5.5" fill="#ffffff"/>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Argus eye/reticle icon */}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="20" height="20" style={{ flexShrink: 0 }}>
+          <line x1="100" y1="0"   x2="100" y2="200" stroke="#f6f7f9" strokeWidth="2.8"/>
+          <line x1="0"   y1="100" x2="200" y2="100" stroke="#f6f7f9" strokeWidth="2.8"/>
+          <circle cx="100" cy="100" r="82" fill="none" stroke="#f6f7f9" strokeWidth="3.5"/>
+          <path d="M 18,100 A 100,100 0 0,1 182,100" fill="none" stroke="#f6f7f9" strokeWidth="3.5"/>
+          <path d="M 182,100 A 100,100 0 0,1 18,100"  fill="none" stroke="#f6f7f9" strokeWidth="3.5"/>
+          <circle cx="100" cy="100" r="28" fill="none" stroke="#f6f7f9" strokeWidth="3.5"/>
+          <circle cx="100" cy="100" r="5.5" fill="#f6f7f9"/>
         </svg>
+
         <span style={{
           fontFamily:    'Inter, sans-serif',
           fontSize:      '13px',
           fontWeight:    700,
           letterSpacing: '0.18em',
           textTransform: 'uppercase',
-          color:         '#e2e4e9',
+          color:         '#f6f7f9',
         }}>
           ARGUS
         </span>
-        {/* Live dot */}
-        <div style={{
-          display:    'flex',
-          alignItems: 'center',
-          gap:        '5px',
-        }}>
+
+        {/* Live indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <div style={{
-            width:      '6px',
-            height:     '6px',
+            width:        '6px',
+            height:       '6px',
             borderRadius: '50%',
-            background: pulse ? '#10b981' : '#10b98166',
-            boxShadow:  pulse ? '0 0 6px #10b981' : 'none',
-            transition: 'all 0.6s ease',
+            background:   pulse ? '#32a467' : '#32a46766',  // Blueprint green4
+            boxShadow:    pulse ? '0 0 6px #32a467' : 'none',
+            transition:   'all 0.6s ease',
           }} />
           <span style={{
             fontFamily:    'Inter, sans-serif',
             fontSize:      '9px',
-            fontWeight:    500,
+            fontWeight:    600,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color:         '#4a4a6a',
+            color:         '#738091',  // Blueprint gray2
           }}>
             LIVE
           </span>
         </div>
 
-        {/* Map focus toggle */}
+        {/* Map focus toggle — Blueprint minimal button style */}
         <button
           onClick={onToggleMapFocus}
           title={mapFocus ? 'Show event feed' : 'Map focus mode'}
           style={{
-            background:    mapFocus ? '#1a2a1a' : 'transparent',
-            border:        `1px solid ${mapFocus ? '#10b98140' : '#1e1e30'}`,
-            borderRadius:  0,
-            padding:       '3px 9px',
+            background:    mapFocus ? '#1a3a20' : '#252a31',  // Blueprint elevated bg when inactive
+            border:        `1px solid ${mapFocus ? '#32a46740' : '#383e47'}`,
+            borderRadius:  '2px',
+            padding:       '3px 10px',
             fontFamily:    'Inter, sans-serif',
-            fontSize:      '8px',
-            fontWeight:    700,
+            fontSize:      '9px',
+            fontWeight:    600,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color:         mapFocus ? '#10b981' : '#4a4a6a',
+            color:         mapFocus ? '#32a467' : '#738091',
             cursor:        'pointer',
             transition:    'all 0.15s',
           }}
-          onMouseEnter={(e) => { if (!mapFocus) { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.borderColor = '#3a3a50'; }}}
-          onMouseLeave={(e) => { if (!mapFocus) { e.currentTarget.style.color = '#4a4a6a'; e.currentTarget.style.borderColor = '#1e1e30'; }}}
+          onMouseEnter={(e) => {
+            if (!mapFocus) {
+              e.currentTarget.style.background   = '#2f343c';
+              e.currentTarget.style.color        = '#abb3bf';
+              e.currentTarget.style.borderColor  = '#404854';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!mapFocus) {
+              e.currentTarget.style.background  = '#252a31';
+              e.currentTarget.style.color       = '#738091';
+              e.currentTarget.style.borderColor = '#383e47';
+            }
+          }}
         >
           {mapFocus ? '⊠ MAP FOCUS' : '⊡ MAP FOCUS'}
         </button>
       </div>
 
-      {/* Right stats */}
+      {/* Right: stats */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-        <StatCell label="EVENTS"    value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#e2e4e9" />
+        <StatCell label="EVENTS"       value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9" />
         <Divider />
-        <StatCell label="SOURCES"   value={(stats?.totalSources ?? 0).toLocaleString()} valueColor="#10b981" />
+        <StatCell label="SOURCES"      value={(stats?.totalSources ?? 0).toLocaleString()} valueColor="#32a467" />
         <Divider />
-        <StatCell label="COUNTRIES" value={stats?.countriesAffected ?? 0}               valueColor="#e2e4e9" />
+        <StatCell label="COUNTRIES"    value={stats?.countriesAffected ?? 0}               valueColor="#f6f7f9" />
         <Divider />
-        <StatCell label="AVG TONE"  value={toneStr}                                     valueColor={toneColor} mono tooltip="Goldstein Scale avg. Negative = conflict pressure." />
+        <StatCell label="AVG TONE"     value={toneStr}  valueColor={toneColor} mono
+          tooltip="Goldstein Scale average. Negative = conflict pressure." />
         <Divider />
         <StatCell
           label="TREND"
@@ -155,16 +173,16 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
                                                '→ STABLE'
           }
           valueColor={
-            stats?.trend === 'ESCALATING'    ? '#ef4444' :
-            stats?.trend === 'DE-ESCALATING' ? '#10b981' :
-                                               '#eab308'
+            stats?.trend === 'ESCALATING'    ? '#e76a6e' :
+            stats?.trend === 'DE-ESCALATING' ? '#32a467' :
+                                               '#fbb360'
           }
           tooltip="Conflict trend: compares Goldstein avg of recent vs prior events."
         />
         <Divider />
-        <StatCell label="LAST REFRESH" value={refreshAge}                                valueColor="#6b7280" mono />
+        <StatCell label="LAST REFRESH" value={refreshAge} valueColor="#5f6b7c" mono />
         <Divider />
-        <StatCell label="ZULU TIME"   value={zuluTime}                                   valueColor="#9ca3af" mono />
+        <StatCell label="ZULU TIME"    value={zuluTime}   valueColor="#abb3bf" mono />
       </div>
     </div>
   );
@@ -174,7 +192,7 @@ function StatCell({ label, value, valueColor, mono, tooltip }) {
   return (
     <div
       title={tooltip}
-      style={{ padding: '0 16px', textAlign: 'right', cursor: tooltip ? 'help' : 'default' }}
+      style={{ padding: '0 14px', textAlign: 'right', cursor: tooltip ? 'help' : 'default' }}
     >
       <div style={{
         fontFamily:    'Inter, sans-serif',
@@ -182,7 +200,7 @@ function StatCell({ label, value, valueColor, mono, tooltip }) {
         fontWeight:    600,
         textTransform: 'uppercase',
         letterSpacing: '0.07em',
-        color:         '#4a4a6a',
+        color:         '#738091',   // Blueprint gray2
         marginBottom:  '2px',
       }}>
         {label}
@@ -204,8 +222,8 @@ function Divider() {
   return (
     <div style={{
       width:      '1px',
-      height:     '24px',
-      background: '#1e1e30',
+      height:     '22px',
+      background: '#383e47',   // Blueprint dark-gray4 — inner divider
       flexShrink: 0,
     }} />
   );

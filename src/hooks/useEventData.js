@@ -39,11 +39,45 @@ export function useEventData(filters = {}) {
         const res = await fetch('/api/events?limit=1000');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        setEvents(json.data || []);
+        const loadedEvents = json.data || [];
+        setEvents(loadedEvents);
         setDataSource(json.source || 'gdelt');
         setFetchedAt(json.fetchedAt || null);
         setDismissedIds(new Set((json.dismissedIds || []).map(String)));
         setError(null);
+
+        // Batch corroboration for eligible events (Explosions/Remote violence, Battles)
+        const eligible = loadedEvents.filter(
+          (e) => (e.event_type === 'Explosions/Remote violence' || e.event_type === 'Battles')
+            && e.latitude && e.longitude && e.event_date
+        );
+        if (eligible.length > 0) {
+          try {
+            const batchPayload = eligible.map((e) => ({
+              id:   e.event_id_cnty,
+              lat:  e.latitude,
+              lon:  e.longitude,
+              date: e.event_date,
+            }));
+            const corrRes = await fetch('/api/firms/corroborate-batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ events: batchPayload }),
+            });
+            if (corrRes.ok) {
+              const { results } = await corrRes.json();
+              setEvents((prev) => prev.map((e) => {
+                const r = results[e.event_id_cnty];
+                if (r && r.corroborated) {
+                  return { ...e, satellite_corroborated: true, firms_detections: r.detections, firms_max_frp: r.maxFRP, firms_nearest_km: r.nearestKm };
+                }
+                return e;
+              }));
+            }
+          } catch (corrErr) {
+            console.warn('[useEventData] FIRMS corroboration failed:', corrErr.message);
+          }
+        }
       } catch (err) {
         console.error('[useEventData] fetch error:', err);
         setError(err.message);

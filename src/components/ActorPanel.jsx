@@ -3,21 +3,20 @@ import React, { useMemo } from 'react';
 const LABEL_STYLE = {
   fontFamily:    'Inter, sans-serif',
   fontSize:      '9px',
-  fontWeight:    700,
+  fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color:         '#4a4a6a',
+  color:         '#738091',    // Blueprint gray2
 };
 
 /**
  * ActorPanel
  * ----------
- * Surfaces the most frequently appearing actors in the current filtered
- * event set. Clicking an actor name adds it to the search query, letting
- * the analyst drill into that actor's activity instantly.
+ * Top actors by event frequency. Clicking an actor name filters the feed
+ * to that actor's events.
  *
- * Entity-level intelligence on top of event-level data — the analyst can
- * see at a glance who is most active, not just where events are occurring.
+ * Blueprint style: elevated-bg rows (#252a31), left-border accent on selection,
+ * Blueprint blue4 for active state.
  */
 export function ActorPanel({ events, searchQuery, onSearch }) {
   const topActors = useMemo(() => {
@@ -31,12 +30,8 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
         counts[e.actor2] = (counts[e.actor2] || 0) + 1;
     });
 
-    const sorted = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 7);
-
+    const sorted   = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);
     const maxCount = sorted[0]?.[1] || 1;
-
     return sorted.map(([name, count]) => ({
       name,
       count,
@@ -48,9 +43,7 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
 
   return (
     <div style={{ marginBottom: '16px' }}>
-      <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>
-        ACTIVE ENTITIES
-      </div>
+      <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>ACTIVE ENTITIES</div>
 
       {topActors.map(({ name, count, pct }) => {
         const isActive = searchQuery === name;
@@ -60,24 +53,27 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
             onClick={() => onSearch(isActive ? '' : name)}
             title={isActive ? 'Clear actor filter' : `Filter to ${name}`}
             style={{
-              padding:      '4px 8px',
+              padding:      '5px 8px',
               marginBottom: '3px',
               cursor:       'pointer',
-              border:       `1px solid ${isActive ? '#3b82f640' : '#1e1e30'}`,
-              borderLeft:   `3px solid ${isActive ? '#3b82f6' : 'transparent'}`,
-              background:   isActive ? '#0d1526' : '#0d0d14',
+              background:   isActive ? '#1e3048' : '#252a31',   // Blueprint elevated / primary tint
+              border:       `1px solid ${isActive ? '#4c90f040' : '#383e47'}`,
+              borderLeft:   `3px solid ${isActive ? '#4c90f0' : 'transparent'}`,
+              borderRadius: '2px',
               transition:   'all 0.12s',
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                e.currentTarget.style.background    = '#16161d';
-                e.currentTarget.style.borderLeftColor = '#3b82f640';
+                e.currentTarget.style.background      = '#2f343c';
+                e.currentTarget.style.borderLeftColor = '#4c90f040';
+                e.currentTarget.style.borderColor     = '#404854';
               }
             }}
             onMouseLeave={(e) => {
               if (!isActive) {
-                e.currentTarget.style.background    = '#0d0d14';
+                e.currentTarget.style.background      = '#252a31';
                 e.currentTarget.style.borderLeftColor = 'transparent';
+                e.currentTarget.style.borderColor     = '#383e47';
               }
             }}
           >
@@ -86,12 +82,12 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
               display:        'flex',
               justifyContent: 'space-between',
               alignItems:     'center',
-              marginBottom:   '3px',
+              marginBottom:   '4px',
             }}>
               <span style={{
                 fontFamily:   'Inter, sans-serif',
                 fontSize:     '11px',
-                color:        isActive ? '#e2e4e9' : '#9ca3af',
+                color:        isActive ? '#f6f7f9' : '#abb3bf',
                 overflow:     'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace:   'nowrap',
@@ -103,22 +99,24 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
               <span style={{
                 fontFamily: 'JetBrains Mono, monospace',
                 fontSize:   '9px',
-                color:      isActive ? '#3b82f6' : '#4a4a6a',
+                color:      isActive ? '#4c90f0' : '#5f6b7c',
                 flexShrink: 0,
               }}>
                 {count}
               </span>
             </div>
-            {/* Frequency bar */}
-            <div style={{ height: '2px', background: '#1e1e30', position: 'relative' }}>
+
+            {/* Frequency bar — Blueprint progress track */}
+            <div style={{ height: '2px', background: '#383e47', position: 'relative', borderRadius: '1px' }}>
               <div style={{
-                position:   'absolute',
-                top:        0,
-                left:       0,
-                height:     '100%',
-                width:      `${pct}%`,
-                background: isActive ? '#3b82f6' : '#2a3a5a',
-                transition: 'width 0.3s ease',
+                position:     'absolute',
+                top:          0,
+                left:         0,
+                height:       '100%',
+                width:        `${pct}%`,
+                background:   isActive ? '#4c90f0' : '#215db0',  // Blueprint blue4 / blue2
+                borderRadius: '1px',
+                transition:   'width 0.3s ease',
               }} />
             </div>
           </div>

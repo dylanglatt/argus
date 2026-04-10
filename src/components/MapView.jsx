@@ -12,12 +12,31 @@ import { EVENT_TYPES, MAP_CONFIG } from '../utils/constants';
  * Auto-fit: on first event load, the map flies to the bounding box of all
  * loaded events, giving an operationally honest initial view.
  */
-export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBrief }) {
+export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBrief, showThermal }) {
   const mapRef          = useRef(null);
   const hasFitted       = useRef(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [popupCoords,   setPopupCoords]   = useState(null);
+  const [firmsData,     setFirmsData]     = useState(null);
   const mapToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  // Fetch FIRMS thermal anomalies when layer is enabled
+  useEffect(() => {
+    if (!showThermal) return;
+    if (firmsData) return; // already fetched
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/firms');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setFirmsData(json.data || []);
+      } catch (err) {
+        console.warn('[MapView] FIRMS fetch failed:', err.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showThermal, firmsData]);
 
   // Auto-fit to event bounds on first data load
   useEffect(() => {
@@ -82,7 +101,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
   const colorExpr = [
     'match', ['get', 'type'],
     ...Object.entries(EVENT_TYPES).flatMap(([key, t]) => [key, t.color]),
-    '#9ca3af',
+    '#abb3bf',
   ];
 
   const handleMapClick = (e) => {
@@ -115,6 +134,26 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
     }
   };
 
+  // Build FIRMS GeoJSON for thermal layer
+  const firmsGeoData = useMemo(() => {
+    if (!firmsData || firmsData.length === 0) return { type: 'FeatureCollection', features: [] };
+    return {
+      type: 'FeatureCollection',
+      features: firmsData.map((d, i) => ({
+        type: 'Feature',
+        properties: {
+          frp:        d.frp || 0,
+          confidence: d.confidence || 0,
+          acq_date:   d.acq_date || '',
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [d.longitude, d.latitude],
+        },
+      })),
+    };
+  }, [firmsData]);
+
   // Event type breakdown for legend
   const typeCounts = useMemo(() => {
     const counts = {};
@@ -128,17 +167,17 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
     return (
       <div style={{
         flex:           1,
-        background:     '#0a0a0f',
-        borderBottom:   '1px solid #1e1e30',
+        background:     '#111418',
+        borderBottom:   '1px solid #2f343c',
         display:        'flex',
         alignItems:     'center',
         justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Inter', fontSize: '11px', color: '#6b7280', letterSpacing: '0.05em' }}>
+          <div style={{ fontFamily: 'Inter', fontSize: '11px', color: '#738091', letterSpacing: '0.05em' }}>
             MAP UNAVAILABLE
           </div>
-          <div style={{ fontFamily: 'Inter', fontSize: '10px', color: '#4a4a5a', marginTop: '4px' }}>
+          <div style={{ fontFamily: 'Inter', fontSize: '10px', color: '#5f6b7c', marginTop: '4px' }}>
             Configure VITE_MAPBOX_TOKEN to enable
           </div>
         </div>
@@ -147,7 +186,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
   }
 
   return (
-    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', borderBottom: '1px solid #1e1e30' }}>
+    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', borderBottom: '1px solid #2f343c' }}>
       <Map
         ref={mapRef}
         initialViewState={{
@@ -216,7 +255,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
               'text-font':  ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
               'text-size':  10,
             }}
-            paint={{ 'text-color': '#e2e4e9' }}
+            paint={{ 'text-color': '#f6f7f9' }}
           />
 
           {/* Individual unclustered points */}
@@ -234,6 +273,37 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             }}
           />
         </Source>
+
+        {/* FIRMS thermal anomaly layer — toggle-able satellite overlay */}
+        {showThermal && firmsData && (
+          <Source id="firms-thermal" type="geojson" data={firmsGeoData}>
+            <Layer
+              id="firms-thermal-points"
+              type="circle"
+              paint={{
+                'circle-radius': [
+                  'interpolate', ['linear'], ['get', 'frp'],
+                  0,   3,
+                  50,  5,
+                  200, 8,
+                  500, 11,
+                ],
+                'circle-color': [
+                  'interpolate', ['linear'], ['get', 'frp'],
+                  0,   '#ec9a3c',   // orange at low FRP
+                  100, '#e76a6e',   // red at high FRP
+                ],
+                'circle-opacity': [
+                  'interpolate', ['linear'], ['get', 'frp'],
+                  0,   0.4,
+                  200, 0.6,
+                ],
+                'circle-stroke-width': 0,
+                'circle-blur': 0.3,
+              }}
+            />
+          </Source>
+        )}
 
         {selectedEvent && popupCoords && (
           <Popup
@@ -257,8 +327,8 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
         display: 'flex', flexDirection: 'column', gap: '6px',
       }}>
         <div style={{
-          background:     'rgba(10, 10, 15, 0.92)',
-          border:         '1px solid #1e1e30',
+          background:     'rgba(17, 20, 24, 0.92)',
+          border:         '1px solid #2f343c',
           padding:        '5px 12px',
           backdropFilter: 'blur(6px)',
           display:        'flex',
@@ -271,14 +341,14 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             fontWeight:    700,
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
-            color:         '#4a4a6a',
+            color:         '#738091',
           }}>
             THEATER OVERVIEW
           </span>
           <span style={{
             fontFamily: 'JetBrains Mono, monospace',
             fontSize:   '11px',
-            color:      '#e2e4e9',
+            color:      '#f6f7f9',
             fontWeight: 600,
           }}>
             {events.length.toLocaleString()} events
@@ -287,8 +357,8 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
 
         {/* GDELT badge */}
         <div style={{
-          background:     'rgba(10, 10, 15, 0.92)',
-          border:         '1px solid #1e1e3066',
+          background:     'rgba(17, 20, 24, 0.92)',
+          border:         '1px solid #383e47',
           padding:        '3px 10px',
           backdropFilter: 'blur(6px)',
           display:        'flex',
@@ -299,15 +369,15 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             width:      '5px',
             height:     '5px',
             borderRadius: '50%',
-            background: '#10b981',
+            background: '#32a467',
             flexShrink: 0,
-            boxShadow:  '0 0 5px #10b981',
+            boxShadow:  '0 0 5px #32a467',
           }} />
           <span style={{
             fontFamily:    'Inter, sans-serif',
             fontSize:      '9px',
             fontWeight:    500,
-            color:         '#6b7280',
+            color:         '#738091',
             letterSpacing: '0.05em',
           }}>
             GDELT · 15 MIN REFRESH
@@ -321,8 +391,8 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
         bottom:         '28px',
         right:          '12px',
         zIndex:         400,
-        background:     'rgba(10, 10, 15, 0.92)',
-        border:         '1px solid #1e1e30',
+        background:     'rgba(17, 20, 24, 0.92)',
+        border:         '1px solid #2f343c',
         padding:        '8px 10px',
         backdropFilter: 'blur(6px)',
         minWidth:       '140px',
@@ -333,7 +403,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           fontWeight:    700,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          color:         '#4a4a6a',
+          color:         '#738091',
           marginBottom:  '7px',
         }}>
           EVENT TYPES
@@ -360,7 +430,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
                 <span style={{
                   fontFamily: 'Inter, sans-serif',
                   fontSize:   '9px',
-                  color:      '#6b7280',
+                  color:      '#738091',
                   whiteSpace: 'nowrap',
                 }}>
                   {type.label.split('/')[0].trim()}
@@ -369,7 +439,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
               <span style={{
                 fontFamily: 'JetBrains Mono, monospace',
                 fontSize:   '9px',
-                color:      '#4a4a6a',
+                color:      '#738091',
               }}>
                 {count}
               </span>
@@ -385,12 +455,12 @@ function PopupContent({ event, onOpenCountryBrief }) {
   const eventType = EVENT_TYPES[event.type];
   const score     = event.impact_score ?? 0;
   const impactColor =
-    score >= 8 ? '#ef4444' :
-    score >= 5 ? '#eab308' :
-                 '#6b7280';
+    score >= 8 ? '#e76a6e' :
+    score >= 5 ? '#fbb360' :
+                 '#738091';
 
   const tone     = event.avg_tone ?? 0;
-  const toneColor = tone < -5 ? '#ef4444' : tone < 0 ? '#eab308' : '#10b981';
+  const toneColor = tone < -5 ? '#e76a6e' : tone < 0 ? '#fbb360' : '#32a467';
   const toneStr   = `${tone > 0 ? '+' : ''}${tone.toFixed(1)}`;
 
   return (
@@ -401,7 +471,7 @@ function PopupContent({ event, onOpenCountryBrief }) {
         fontWeight:    700,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
-        color:         eventType?.color || '#9ca3af',
+        color:         eventType?.color || '#abb3bf',
         marginBottom:  '4px',
         display:       'flex',
         alignItems:    'center',
@@ -410,7 +480,7 @@ function PopupContent({ event, onOpenCountryBrief }) {
         <div style={{
           width:      '5px',
           height:     '5px',
-          background: eventType?.color || '#9ca3af',
+          background: eventType?.color || '#abb3bf',
           transform:  'rotate(45deg)',
           flexShrink: 0,
         }} />
@@ -421,7 +491,7 @@ function PopupContent({ event, onOpenCountryBrief }) {
       <div style={{
         fontSize:     '13px',
         fontWeight:   600,
-        color:        '#e2e4e9',
+        color:        '#f6f7f9',
         marginBottom: '10px',
         lineHeight:   1.3,
       }}>
@@ -440,19 +510,19 @@ function PopupContent({ event, onOpenCountryBrief }) {
 
       {/* Notes */}
       {event.notes && (
-        <div style={{ borderTop: '1px solid #1e1e30', paddingTop: '6px', marginBottom: '6px' }}>
+        <div style={{ borderTop: '1px solid #2f343c', paddingTop: '6px', marginBottom: '6px' }}>
           <div style={{
             fontSize:      '9px',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
-            color:         '#6b7280',
+            color:         '#738091',
             marginBottom:  '3px',
           }}>
             NOTES
           </div>
           <div style={{
             fontSize:            '10px',
-            color:               '#9ca3af',
+            color:               '#abb3bf',
             lineHeight:          '1.5',
             display:             '-webkit-box',
             WebkitLineClamp:     3,
@@ -465,7 +535,7 @@ function PopupContent({ event, onOpenCountryBrief }) {
       )}
 
       {/* Footer: source link + country brief */}
-      <div style={{ borderTop: '1px solid #1e1e30', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ borderTop: '1px solid #2f343c', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {event.source_url ? (
           <a
             href={event.source_url}
@@ -476,7 +546,7 @@ function PopupContent({ event, onOpenCountryBrief }) {
               fontSize:       '9px',
               textTransform:  'uppercase',
               letterSpacing:  '0.05em',
-              color:          '#3b82f6',
+              color:          '#4c90f0',
               textDecoration: 'none',
             }}
             onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
@@ -495,18 +565,18 @@ function PopupContent({ event, onOpenCountryBrief }) {
             }}
             style={{
               background:    'transparent',
-              border:        '1px solid #1e1e30',
+              border:        '1px solid #2f343c',
               padding:       '2px 7px',
               fontFamily:    'Inter, sans-serif',
               fontSize:      '9px',
               fontWeight:    700,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              color:         '#6b7280',
+              color:         '#738091',
               cursor:        'pointer',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#e2e4e9'; e.currentTarget.style.borderColor = '#3a3a50'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#1e1e30'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#f6f7f9'; e.currentTarget.style.borderColor = '#3a3a50'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#738091'; e.currentTarget.style.borderColor = '#2f343c'; }}
           >
             COUNTRY BRIEF
           </button>
@@ -523,7 +593,7 @@ function Detail({ label, value, mono, valueColor }) {
         fontSize:      '9px',
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
-        color:         '#6b7280',
+        color:         '#738091',
         marginBottom:  '1px',
       }}>
         {label}
@@ -531,7 +601,7 @@ function Detail({ label, value, mono, valueColor }) {
       <div style={{
         fontSize:     '11px',
         fontFamily:   mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
-        color:        valueColor || '#9ca3af',
+        color:        valueColor || '#abb3bf',
         fontWeight:   mono ? 500 : 400,
         whiteSpace:   'nowrap',
         overflow:     'hidden',

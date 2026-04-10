@@ -317,10 +317,40 @@ const REJECT_URL_SLUGS = [
   'hurricane-', 'tornado-', 'wildfire-', 'earthquake-',
 ];
 
+// ---------------------------------------------------------------------------
+// Source domain blocklist: junk aggregators, content farms, and fringe outlets
+// that GDELT indexes but have no editorial standards. Checked by hostname.
+// ---------------------------------------------------------------------------
+const REJECT_DOMAINS = new Set([
+  // Junk aggregators / content farms
+  'spacewar.com',
+  'middle-east-online.com',
+  'newsofthesouth.com',
+  'worldtribune.com',
+  'debka.com',
+  'southfront.org',
+  // Clickbait / tabloid — not credible for conflict reporting
+  'thesun.co.uk',
+  'dailystar.co.uk',
+  'mirror.co.uk',
+  // SEO content farms that rewrite wire stories with misleading framing
+  'hongkongherald.com',
+  'londonlovesbusiness.com',
+  'modernghana.com',
+]);
+
 function rejectByUrl(sourceUrl) {
   if (!sourceUrl) return false;
   const slug = sourceUrl.toLowerCase();
-  return REJECT_URL_SLUGS.some((pattern) => slug.includes(pattern));
+  if (REJECT_URL_SLUGS.some((pattern) => slug.includes(pattern))) return true;
+
+  // Domain blocklist check
+  try {
+    const hostname = new URL(sourceUrl).hostname.replace(/^www\./, '');
+    if (REJECT_DOMAINS.has(hostname)) return true;
+  } catch { /* malformed URL — handled downstream */ }
+
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -395,11 +425,13 @@ function normalizeRow(cols, hourBucket = 0) {
   const eventType = mapEventType(cols[C.EventRootCode], eventCode);
   if (!eventType) return null;
 
-  // Require at least 3 distinct source outlets.
-  // 1–2 source events are overwhelmingly domestic noise that GDELT has
-  // misclassified — real geopolitical conflict gets picked up by 3+ outlets.
+  // Require at least 2 distinct source outlets.
+  // Single-source events are overwhelmingly domestic noise that GDELT has
+  // misclassified — real geopolitical conflict gets picked up by 2+ outlets.
+  // (Previously 3, but that was too aggressive for underreported regions like
+  // Sahel, Myanmar, and DRC where legitimate events may have limited coverage.)
   const numSources  = parseInt(cols[C.NumSources], 10) || 0;
-  if (numSources < 3) return null;
+  if (numSources < 2) return null;
 
   const numMentions = parseInt(cols[C.NumMentions], 10) || 0;
 

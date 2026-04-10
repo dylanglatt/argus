@@ -217,41 +217,40 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
               // Weight by num_mentions so widely-covered events burn brighter
               'heatmap-weight': [
                 'interpolate', ['linear'], ['get', 'num_mentions'],
-                0, 0.1,
-                10, 0.4,
-                50, 0.7,
-                200, 1,
+                0, 0.05,
+                10, 0.25,
+                50, 0.5,
+                200, 0.8,
               ],
-              // Intensity increases slightly as you zoom in
+              // Keep intensity low — this is a background hint, not the primary visual
               'heatmap-intensity': [
                 'interpolate', ['linear'], ['zoom'],
-                0, 0.6,
-                5, 1.2,
+                0, 0.2,
+                5, 0.5,
               ],
-              // Color: transparent → navy → blue → orange → red
+              // Color: transparent → cool blue only — no orange/red bleed at global zoom
               'heatmap-color': [
                 'interpolate', ['linear'], ['heatmap-density'],
                 0,    'rgba(0,0,0,0)',
-                0.15, 'rgba(29,53,87,0.6)',
-                0.35, 'rgba(29,78,216,0.7)',
-                0.6,  'rgba(180,83,9,0.8)',
-                0.8,  'rgba(185,28,28,0.85)',
-                1,    'rgba(220,38,38,0.9)',
+                0.2,  'rgba(29,53,87,0.3)',
+                0.5,  'rgba(29,78,216,0.45)',
+                0.75, 'rgba(120,60,10,0.5)',
+                1,    'rgba(180,28,28,0.55)',
               ],
-              // Radius shrinks as you zoom in — tight clusters at street level
+              // Small radius — dots, not continent-spanning blobs
               'heatmap-radius': [
                 'interpolate', ['linear'], ['zoom'],
-                0, 12,
-                4, 20,
-                7, 14,
+                0, 5,
+                3, 8,
+                5, 12,
+                7, 10,
               ],
-              // Fade the heatmap out as zoom increases — markers take over
+              // Fade out early — clusters take over by zoom 4
               'heatmap-opacity': [
                 'interpolate', ['linear'], ['zoom'],
-                3,  0.85,
-                5,  0.55,
-                6,  0.2,
-                7,  0,
+                2,  0.35,
+                4,  0.2,
+                5,  0,
               ],
             }}
           />
@@ -284,13 +283,13 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
                 22,   75,
                 28,
               ],
-              'circle-opacity':        0.92,
+              'circle-opacity':        0.95,
               'circle-stroke-width':   1.5,
               'circle-stroke-color': [
                 'step', ['get', 'point_count'],
-                'rgba(100,140,255,0.35)',  20,
-                'rgba(255,160,50,0.35)',   75,
-                'rgba(255,80,80,0.35)',
+                'rgba(100,140,255,0.55)',  20,
+                'rgba(255,160,50,0.55)',   75,
+                'rgba(255,80,80,0.55)',
               ],
             }}
           />

@@ -19,7 +19,7 @@
  * Blob key: "feedback.json" (no random suffix — always overwrites in place)
  */
 
-import { put, head } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 
 const BLOB_KEY = 'feedback.json';
 
@@ -34,9 +34,10 @@ let confirmedIds = new Set();
 async function loadFromBlob() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return;
   try {
-    const meta = await head(BLOB_KEY);
-    if (!meta?.url) return;
-    const res = await fetch(meta.url);
+    // head() requires a full blob URL, not a pathname — use list() to resolve.
+    const { blobs } = await list({ prefix: BLOB_KEY, limit: 1 });
+    if (!blobs[0]?.url) return;
+    const res = await fetch(blobs[0].url);
     if (!res.ok) return;
     const data = await res.json();
     dismissedIds = new Set((data.dismissed || []).map(String));

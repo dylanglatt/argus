@@ -9,7 +9,7 @@
  * Blob key: "events.json" (public, no random suffix)
  */
 
-import { put, head } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 
 const BLOB_KEY = 'events.json';
 
@@ -29,10 +29,12 @@ export async function getEventsFromBlob() {
   if (!isBlobConfigured()) return null;
 
   try {
-    const meta = await head(BLOB_KEY);
-    if (!meta?.url) return null;
+    // head() requires a full blob URL, not a pathname — use list() to resolve
+    // the pathname to its full public URL before fetching.
+    const { blobs } = await list({ prefix: BLOB_KEY, limit: 1 });
+    if (!blobs[0]?.url) return null;
 
-    const res = await fetch(meta.url);
+    const res = await fetch(blobs[0].url);
     if (!res.ok) {
       console.warn(`[blobCache] fetch from blob URL failed: ${res.status}`);
       return null;

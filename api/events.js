@@ -19,8 +19,18 @@
 import { fetchConflictEvents, getCacheFetchedAt } from '../server/gdeltFetcher.js';
 import { getEventsFromBlob } from '../server/blobCache.js';
 import { mockEvents } from '../server/mockData.js';
+import {
+  initFeedbackStore,
+  filterDismissed,
+  getDismissedIds,
+  getConfirmedIds,
+} from '../server/feedbackStore.js';
 
 export default async function handler(req, res) {
+  // Load analyst feedback from Blob before filtering/serving events.
+  // Serverless functions are stateless — must reload on each invocation.
+  await initFeedbackStore();
+
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=86400');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -85,6 +95,9 @@ export default async function handler(req, res) {
     events = events.filter((e) => countries.includes(e.country));
   }
 
+  // Strip analyst-dismissed events before serving
+  events = filterDismissed(events);
+
   events.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
 
   console.log(`[events] Returning ${Math.min(events.length, limit)} / ${events.length} events (source: ${source})`);
@@ -95,5 +108,7 @@ export default async function handler(req, res) {
     source,
     fetchedAt,
     kv_age_minutes: kvAgeMinutes,
+    dismissedIds:   getDismissedIds(),
+    confirmedIds:   getConfirmedIds(),
   });
 }

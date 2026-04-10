@@ -10,9 +10,9 @@ POLECAT data sourced from Harvard Dataverse (CIA/DARPA-funded ICEWS successor):
   License: Research and educational use only (© 2023 Leidos)
 
 Usage:
-  python python/ingest_polecat.py
-  python python/ingest_polecat.py --years 2023 2024
-  python python/ingest_polecat.py --years 2023 2024 --min-intensity -3
+  python3 python/ingest_polecat.py
+  python3 python/ingest_polecat.py --years 2023 2024
+  python3 python/ingest_polecat.py --years 2023 2024 --min-intensity -3
 
 Output:
   data/processed/polecat_events.json       — normalized conflict events

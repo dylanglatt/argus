@@ -358,6 +358,73 @@ const NATIONALITY_TO_LABEL = {
   Myanmar:      'Myanmar Forces',
 };
 
+// Country name → nationality adjective for typed country-as-actor expansion.
+// "Israel [MIL]" → "Israeli Military"  |  "Iran [GOV]" → "Iranian Government"
+// Only covers conflict-relevant countries — others fall back to "Country Role".
+const COUNTRY_TO_NATIONALITY = {
+  'Israel':                          'Israeli',
+  'Iran':                            'Iranian',
+  'Palestine':                       'Palestinian',
+  'Ukraine':                         'Ukrainian',
+  'Russia':                          'Russian',
+  'Syria':                           'Syrian',
+  'Iraq':                            'Iraqi',
+  'Yemen':                           'Yemeni',
+  'Somalia':                         'Somali',
+  'Nigeria':                         'Nigerian',
+  'Sudan':                           'Sudanese',
+  'Libya':                           'Libyan',
+  'Afghanistan':                     'Afghan',
+  'Pakistan':                        'Pakistani',
+  'Myanmar':                         'Myanmar',
+  'Turkey':                          'Turkish',
+  'Ethiopia':                        'Ethiopian',
+  'Mali':                            'Malian',
+  'Niger':                           'Nigerien',
+  'China':                           'Chinese',
+  'India':                           'Indian',
+  'Lebanon':                         'Lebanese',
+  'Saudi Arabia':                    'Saudi',
+  'Egypt':                           'Egyptian',
+  'Colombia':                        'Colombian',
+  'Mexico':                          'Mexican',
+  'Democratic Republic of the Congo':'Congolese',
+  'DR Congo':                        'Congolese',
+  'Philippines':                     'Philippine',
+  'South Sudan':                     'South Sudanese',
+  'Central African Republic':        'Central African',
+  'Burkina Faso':                    'Burkinabe',
+};
+
+// Armed/state actor type code → readable role label.
+// Non-armed types (CVL, BUS, MED, etc.) are not included — those should be
+// demoted to Unknown when they appear as a bare country name.
+const ARMED_TYPE_TO_ROLE = {
+  MIL: 'Military',
+  GOV: 'Government',
+  REB: 'Rebels',
+  COP: 'Police',
+  SPY: 'Intelligence',
+  UAF: 'Armed Forces',
+  IGO: 'Forces',
+};
+
+// Generic standalone role titles — sentence subjects GDELT extracted without
+// resolving a real actor. Demoted to Unknown rather than rejected outright,
+// so events with a meaningful second actor are preserved.
+const GENERIC_ROLE_TITLES = new Set([
+  // Comms roles — extracted from "a spokesman said" / "the spokesperson confirmed"
+  'Spokesman', 'Spokesmen', 'Spokesperson', 'Spokespersons', 'Spokeswoman',
+  // Generic military/combatant titles without organizational context
+  'Commander', 'Commanders', 'Fighter', 'Fighters',
+  // Religious/community titles — appear when GDELT misidentifies religious context
+  'Imam', 'Imams', 'Sheikh', 'Sheikhs', 'Cleric', 'Clerics',
+  'Bishop', 'Bishops', 'Pastor', 'Pastors', 'Priest', 'Priests',
+  // Vague institutional roles
+  'Official', 'Officials', 'Leader', 'Leaders',
+  'Chief', 'Chiefs', 'Head', 'Heads', 'Director', 'Directors',
+]);
+
 // ---------------------------------------------------------------------------
 // GDELT actor name expansion — common abbreviations and type codes
 // ---------------------------------------------------------------------------
@@ -692,11 +759,21 @@ function normalizeRow(cols, hourBucket = 0) {
   if (a1Soft && !a2Hard) return null;
   if (a2Soft && !a1Hard) return null;
 
-  // 3. Demote bare country names with no type code → 'Unknown'.
-  //    GDELT falls back to the country name when it can't resolve an actor.
-  //    Typed country-as-actor (e.g. "Iran [MIL]") is legitimate and kept.
-  if (COUNTRY_NAMES.has(actor1) && !actor1_type) actor1 = 'Unknown';
-  if (COUNTRY_NAMES.has(actor2) && !actor2_type) actor2 = 'Unknown';
+  // 3. Country name actors — two cases:
+  //    a) No type code → bare country name, demote to 'Unknown'
+  //       (GDELT fell back to the country when it couldn't resolve an actor)
+  //    b) Armed type code → expand to readable label: "Israel [MIL]" → "Israeli Military"
+  //       Non-armed type codes (CVL, BUS, etc.) are also demoted to Unknown.
+  function expandCountryActor(name, typeCode) {
+    if (!COUNTRY_NAMES.has(name)) return name;
+    if (!typeCode) return 'Unknown';
+    const role = ARMED_TYPE_TO_ROLE[typeCode];
+    if (!role) return 'Unknown';   // Non-armed type (CVL, BUS, MED…) → Unknown
+    const adj = COUNTRY_TO_NATIONALITY[name];
+    return adj ? `${adj} ${role}` : `${name} ${role}`;
+  }
+  actor1 = expandCountryActor(actor1, actor1_type);
+  actor2 = expandCountryActor(actor2, actor2_type);
 
   // 4. Demote US states → 'Unknown'. GDELT geo-confuses location with actor.
   if (US_STATES.has(actor1)) actor1 = 'Unknown';
@@ -718,6 +795,22 @@ function normalizeRow(cols, hourBucket = 0) {
   // 7. Collapse same-entity pairs — GDELT sometimes lists the same country on
   //    both sides (e.g. "Iran [MIL] vs Iran []"). Demote the duplicate.
   if (actor1 !== 'Unknown' && actor1 === actor2) actor2 = 'Unknown';
+
+  // 8. Generic standalone role titles — demote to Unknown.
+  //    These are sentence subjects GDELT extracted without resolving an actual
+  //    named actor: "a commander confirmed", "the spokesman said", "an imam urged".
+  //    Demoting (not rejecting) preserves events where the other actor is meaningful.
+  if (GENERIC_ROLE_TITLES.has(actor1)) actor1 = 'Unknown';
+  if (GENERIC_ROLE_TITLES.has(actor2)) actor2 = 'Unknown';
+
+  // 9. Ministerial / departmental titles without armed type codes.
+  //    "Education Minister", "Health Secretary" etc. are civilian context actors
+  //    GDELT extracted from background sentences in the article, not direct
+  //    conflict participants. Armed type codes (GOV, MIL) are exempt — a
+  //    "Defense Minister [GOV]" is a legitimate stakeholder.
+  const CIVILIAN_TITLE_RE = /\b(?:minister|secretary|ambassador|consul|chancellor|commissioner|senator|mayor|congressman|representative)\b/i;
+  if (!actor1_type && CIVILIAN_TITLE_RE.test(actor1)) actor1 = 'Unknown';
+  if (!actor2_type && CIVILIAN_TITLE_RE.test(actor2)) actor2 = 'Unknown';
 
   // ---------------------------------------------------------------------------
 

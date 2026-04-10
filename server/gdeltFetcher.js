@@ -490,6 +490,41 @@ const REJECT_DOMAINS = new Set([
   'wjla.com', 'nbc12.com', 'wtvr.com', 'wric.com', '13newsnow.com',
 ]);
 
+// ---------------------------------------------------------------------------
+// US local news source detector.
+//
+// US local TV stations follow three predictable hostname patterns:
+//   1. 4-letter W/K call signs:  wral.com, wjla.com, kiro7.com, wsbtv.com
+//   2. Network affiliate + num:  abc7.com, nbc12.com, fox5.com, cbs8.com
+//   3. Digit-prefixed stations:  13newsnow.com, 10news.com
+//
+// These outlets cover local metro markets. They should never be the primary
+// source for a foreign military event — any GDELT coding that names one as
+// the source for e.g. an Iran or Nigeria event is a domestic story miscoded
+// as foreign conflict. The check is only applied when the event country ≠ US,
+// so legitimate domestic reporting (police, protests) is unaffected.
+//
+// Note: 3-letter domains like wsj.com (Wall Street Journal) do NOT match the
+// 4-letter call sign pattern (/^[wk][a-z]{3}/), so national outlets are safe.
+// ---------------------------------------------------------------------------
+function isUsLocalNewsSource(url) {
+  if (!url) return false;
+  let hostname;
+  try {
+    hostname = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return false;
+  }
+  return (
+    // 4-letter W/K call sign (±digit suffix, ±tv/news suffix)
+    /^[wk][a-z]{3}\d?(?:tv|news)?\.com$/.test(hostname) ||
+    // Major network affiliate + local number: abc7, nbc12, fox5, cbs8
+    /^(?:abc|nbc|cbs|fox)\d{1,2}(?:news|dc|la|ny|chicago|boston)?\.com$/.test(hostname) ||
+    // Digit-prefixed local stations: 13newsnow, 10news, 7news
+    /^\d{1,2}news\w{0,6}\.com$/.test(hostname)
+  );
+}
+
 function rejectByUrl(sourceUrl) {
   if (!sourceUrl) return false;
   const slug = sourceUrl.toLowerCase();
@@ -623,6 +658,12 @@ function normalizeRow(cols, hourBucket = 0) {
   // doing any further work. Patterns like "protective-order-ruling" or
   // "child-custody" cannot appear in a legitimate armed-conflict article.
   if (rejectByUrl(sourceUrl)) return null;
+
+  // US local news source + non-US event → almost always a domestic story
+  // miscoded as foreign conflict (e.g. Florida hammer-attack → Iran CAMEO 190).
+  // Pattern-matched rather than domain-listed so it catches the entire category,
+  // not just outlets we've already encountered.
+  if (countryCode !== 'US' && isUsLocalNewsSource(sourceUrl)) return null;
 
   let actor1 = cleanActorName(cols[C.Actor1Name]);
   let actor2 = cleanActorName(cols[C.Actor2Name]);

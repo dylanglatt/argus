@@ -1,4 +1,4 @@
-# Quick Start Guide - Sentinel
+# Quick Start — Argus
 
 ## Run the Application
 
@@ -6,127 +6,107 @@
 npm run dev
 ```
 
-This starts both:
+Starts both:
 - Frontend on http://localhost:5173
 - Backend API on http://localhost:3001
 
-**Done!** The app works immediately with mock data (74 realistic conflict events).
+The app works immediately with mock data. No API keys required to run locally.
 
-## Features (All Enabled by Default)
+## Configuration
+
+Copy `.env.example` to `.env.local` and fill in keys as needed:
+
+```env
+VITE_MAPBOX_TOKEN=   # Required for live map tiles (get one free at mapbox.com)
+FIRMS_MAP_KEY=       # Optional — NASA FIRMS thermal anomaly layer
+ANTHROPIC_API_KEY=   # Optional — enables Haiku classification gate for data quality
+```
+
+The app falls back gracefully if tokens are missing:
+- No Mapbox token → map placeholder shown
+- No FIRMS key → thermal layer disabled
+- No Anthropic key → Haiku filter skipped, structural CAMEO filters still apply
+
+## Features
 
 ### Map
-- Click events to see details
-- Marker size shows fatality count
-- Color shows event type
+- Clustered conflict event markers, color-coded by event type and severity
+- Optional NASA FIRMS thermal anomaly overlay (satellite corroboration)
+- Click any marker or cluster to inspect events
 
 ### Filters (Left Sidebar)
-- Search text (actors, locations, notes)
-- Event type checkboxes (6 types)
-- Country dropdown with search
-- Date range picker
-- Fatality threshold slider
-- Reset button
+- Event type, country/region, date range, impact score threshold
+- Text search across actors, locations, and notes
 
-### Stats Bar (Below Header)
-- Total Events
-- Total Fatalities
-- Countries Affected
-- Most Active Actor
+### Stats Bar
+- Total events, countries affected, highest-impact event, most active actor
 
-### Event Feed (Bottom Left)
-- List of events sorted by date
-- Click to select
-- Color-coded fatality severity
+### Escalation Banner
+- Auto-surfaces regions with ≥30% event count increase vs. prior 24h
 
-### Time Chart (Bottom Right)
-- Monthly event count
-- Stacked by event type
-- Interactive legend
+### Event Feed
+- Sortable, filterable table of recent events
+- Impact score, media mentions, CAMEO codes, source links
 
-## Optional: Add Mapbox Token
+### Event Detail Panel
+- Full event breakdown: actors, Goldstein score, CAMEO codes, source URL
+- Satellite corroboration callout when FIRMS data confirms nearby thermal activity
 
-To enable the interactive map (default shows placeholder):
-
-1. Get a token from https://account.mapbox.com/tokens/
-2. Create `.env` file:
-   ```
-   VITE_MAPBOX_TOKEN=your_token_here
-   ```
-3. Restart the app (`npm run dev`)
-
-The map will render with actual Mapbox Dark style.
+### Time Series Chart
+- Event count trend over time, grouped by event type
 
 ## API Reference
 
-All endpoints return JSON:
-
 ```bash
-# Server health check
+# Health check
 curl http://localhost:3001/api/health
 
-# Get all events
-curl http://localhost:3001/api/events
-
-# Filter by event type
-curl "http://localhost:3001/api/events?event_type=Battles"
-
-# Filter by country
-curl "http://localhost:3001/api/events?country=Syria"
-
-# Filter by both + limit
-curl "http://localhost:3001/api/events?event_type=Battles&country=Syria&limit=20"
+# Fetch events (with optional filters)
+curl "http://localhost:3001/api/events?limit=100&days=7"
+curl "http://localhost:3001/api/events?event_type=Battles&country=Ukraine"
 ```
 
-## Project Structure (Quick Reference)
+## Project Structure
 
 ```
-sentinel/
-├── server/index.js          ← Express API (port 3001)
-├── server/mockData.js       ← 74 conflict events
-├── src/App.jsx              ← Main component
-├── src/components/          ← 6 UI components
-├── src/hooks/useEventData.js ← Data fetching
-├── src/utils/constants.js   ← Colors, types, regions
-├── src/index.css            ← Dark theme styles
-└── vite.config.js           ← Build config
+argus/
+├── api/                        # Vercel serverless functions
+│   ├── events.js
+│   └── firms/
+├── server/
+│   ├── index.js                # Express backend (local dev)
+│   ├── gdeltFetcher.js         # GDELT 2.0 ZIP/CSV downloader + parser
+│   ├── firmsService.js         # NASA FIRMS thermal data
+│   ├── haikuFilter.js          # Claude Haiku classification gate
+│   ├── reliefwebService.js     # ReliefWeb humanitarian context
+│   └── mockData.js             # Fallback mock events (GDELT-format)
+├── src/
+│   ├── App.jsx
+│   ├── components/
+│   └── hooks/useEventData.js
+├── vercel.json
+└── vite.config.js
 ```
 
-## What's Included
+## Build
 
-✓ 74 realistic mock ACLED conflict events
-✓ Mapbox GL interactive map (graceful fallback)
-✓ Recharts time-series visualization
-✓ Event filtering (type, country, date, fatalities, search)
-✓ Real-time statistics dashboard
-✓ Dark theme (Palantir Gotham style)
-✓ Responsive layout
-✓ Express backend with CORS
-
-## Keyboard Shortcuts
-
-- Filter panel: Use Tab to navigate, Space to check boxes
-- Table: Click rows to select events
-- Map: Use arrow keys to pan, +/- to zoom
+```bash
+npm run build    # Production build
+npm run preview  # Preview built app
+```
 
 ## Troubleshooting
 
 **Map shows placeholder?**
-→ Add VITE_MAPBOX_TOKEN to .env file
+→ Add `VITE_MAPBOX_TOKEN` to `.env.local`
 
-**Port 3001 or 5173 already in use?**
-→ Kill the process: `lsof -ti:3001 | xargs kill -9`
+**Port already in use?**
+→ `lsof -ti:3001 | xargs kill -9`
 
 **Events not loading?**
-→ Check backend: `curl http://localhost:3001/api/health`
-
-## Next Steps
-
-- Add live ACLED API integration (add API key to .env)
-- Customize event type colors in `src/utils/constants.js`
-- Add more filters or visualization types
-- Deploy to production with `npm run build`
+→ `curl http://localhost:3001/api/health`
 
 ---
 
-**Built with**: React, Vite, Tailwind, Mapbox GL, Recharts, Express.js
-**Status**: Ready for use!
+**Data**: GDELT 2.0 Event Database — public, no auth required, updates every 15 minutes
+**Stack**: React 19, Vite, Tailwind CSS v4, Mapbox GL JS, Recharts, Express.js

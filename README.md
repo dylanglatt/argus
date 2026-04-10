@@ -6,7 +6,7 @@
 
 **[Live Demo →](https://argusosint.vercel.app)**
 
-A dense, information-rich OSINT dashboard for tracking global conflict events in near real-time. Built with React, Mapbox GL, and Recharts — styled as a Palantir Gotham / Bloomberg Terminal-style operational analytics tool.
+A dense, information-rich OSINT dashboard for tracking global conflict events in near real-time. Built with React, Mapbox GL, and Recharts — designed as an operational analytics tool in the style of Bloomberg Terminal and military C2 dashboards.
 
 Data is sourced from the **GDELT 2.0 Event Database** — a free, public dataset that updates every 15 minutes and covers conflict events worldwide using CAMEO event codes and the Goldstein Scale for severity scoring.
 
@@ -123,7 +123,7 @@ GDELT 2.0 Event Database is fetched directly from `data.gdeltproject.org` — no
 - Dark theme with muted background tones and bright accent colors for data
 - Monospace fonts for all numerical and event data
 - Color-coded event types: battles, explosions, protests, strategic, riots, violence
-- Inspired by Palantir Gotham, Bloomberg Terminal, and military C2 dashboards
+- Inspired by Bloomberg Terminal and military C2 dashboards
 
 ## Build
 

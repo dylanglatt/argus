@@ -446,6 +446,13 @@ const REJECT_URL_SLUGS = [
   // Opinion / editorial content — not reporting, not conflict evidence
   '/opinion/', '/editorial/', '/commentary/', '/op-ed/', '/letters-to-',
   '/letter-to-editor', '-opinion-', '-editorial-', '-commentary-',
+  // Immigration / border politics — routinely miscoded as foreign military events
+  // e.g. "Trump blames Biden border policies for hammer attack" → CAMEO 190 in Iran
+  'illegal-immigrant', 'haitian-migrant', '-deportation-', 'ice-deportation',
+  'ice-arrest', 'border-polic', 'department-of-homeland',
+  // Domestic crime slug patterns — high false-positive surface in stable countries
+  '-homicide-investigation', '-murder-investigation', '-stabbing-victim',
+  '-shooting-victim', 'bludgeoned', 'hammer-attack',
 ];
 
 // ---------------------------------------------------------------------------
@@ -475,6 +482,12 @@ const REJECT_DOMAINS = new Set([
   // Local Kansas general-interest paper — no conflict reporting; GDELT misclassifies
   // historical retrospectives (cavalry, battles) as kinetic events via military NLP
   'hayspost.com',
+  // US local TV affiliates — never primary sources for foreign military events
+  // Confirmed false-positive: turnto10.com Florida hammer-attack → Iran CAMEO 190
+  'turnto10.com', 'abc7.com', 'abc7news.com', 'fox5.com', 'fox5dc.com',
+  'nbcwashington.com', 'myfoxny.com', 'wsbtv.com', 'wral.com', 'komo4.com',
+  'kiro7.com', 'kxan.com', 'wbaltv.com', 'wgal.com', 'wpxi.com', 'wtae.com',
+  'wjla.com', 'nbc12.com', 'wtvr.com', 'wric.com', '13newsnow.com',
 ]);
 
 function rejectByUrl(sourceUrl) {

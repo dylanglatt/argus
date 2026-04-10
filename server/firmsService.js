@@ -180,11 +180,34 @@ async function fetchFirmsData() {
 // Public API
 // ---------------------------------------------------------------------------
 
+// Minimum Fire Radiative Power (MW) for the map display layer.
+// Agricultural burns: 5–20 MW. Industrial/structural fires: 30–100+ MW.
+// Weapons-related fires: 50–500+ MW. A floor of 30 removes ~80% of
+// seasonal agricultural burn noise while retaining genuine conflict fires.
+const MIN_DISPLAY_FRP = 30;
+
 /**
- * Returns all cached FIRMS thermal anomalies (confidence > 70).
+ * Returns all cached FIRMS thermal anomalies (confidence > 60).
+ * Used by corroboration checks — intentionally unfiltered so low-FRP
+ * detections can still contribute to the corroboration count.
  */
 export async function getFirmsData() {
   return fetchFirmsData();
+}
+
+/**
+ * Returns FIRMS detections filtered for the map display layer:
+ *   1. FRP ≥ MIN_DISPLAY_FRP — removes agricultural burns and low-energy fires
+ *   2. Conflict zone check   — removes detections outside historically active
+ *                              conflict cells (uses the POLECAT-derived index)
+ *
+ * Separate from getFirmsData() so corroboration logic retains full sensitivity
+ * while the visual layer stays clean and legible.
+ */
+export async function getFilteredFirmsData() {
+  const data = await fetchFirmsData();
+  if (!data || data.length === 0) return [];
+  return data.filter((d) => d.frp >= MIN_DISPLAY_FRP && isConflictZone(d.latitude, d.longitude));
 }
 
 /**

@@ -365,25 +365,28 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
               id="firms-thermal-points"
               type="circle"
               paint={{
+                // FRP floor is 30 MW (enforced server-side) so range starts there.
+                // Smaller max radius keeps high-FRP detections from swamping event clusters.
                 'circle-radius': [
                   'interpolate', ['linear'], ['get', 'frp'],
-                  0,   3,
-                  50,  5,
-                  200, 8,
-                  500, 11,
+                  30,  3,
+                  100, 5,
+                  300, 7,
+                  600, 9,
                 ],
                 'circle-color': [
                   'interpolate', ['linear'], ['get', 'frp'],
-                  0,   '#ec9a3c',   // orange at low FRP
-                  100, '#e76a6e',   // red at high FRP
+                  30,  '#ec9a3c',   // orange — moderate fire
+                  150, '#e76a6e',   // red    — high-intensity fire
                 ],
+                // Lower opacity so event cluster circles remain legible underneath
                 'circle-opacity': [
                   'interpolate', ['linear'], ['get', 'frp'],
-                  0,   0.4,
-                  200, 0.6,
+                  30,  0.25,
+                  300, 0.45,
                 ],
                 'circle-stroke-width': 0,
-                'circle-blur': 0.3,
+                'circle-blur': 0.4,
               }}
             />
           </Source>

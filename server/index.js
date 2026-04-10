@@ -10,7 +10,7 @@ import {
   getDismissedIds, getConfirmedIds,
   filterDismissed,
 } from './feedbackStore.js';
-import { getFirmsData, corroborateEvent, corroborateBatch } from './firmsService.js';
+import { getFirmsData, getFilteredFirmsData, corroborateEvent, corroborateBatch } from './firmsService.js';
 import { getReportsForCountry } from './reliefwebService.js';
 
 dotenv.config({ override: true });
@@ -193,7 +193,7 @@ app.get('/api/feedback/dismissed', (_req, res) => {
  */
 app.get('/api/firms', async (_req, res) => {
   try {
-    const data = await getFirmsData();
+    const data = await getFilteredFirmsData();
     res.json({ data, count: data.length });
   } catch (err) {
     console.error('[firms] Route error:', err.message);

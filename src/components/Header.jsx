@@ -11,7 +11,7 @@ import React, { useState, useEffect } from 'react';
  * Left:  ARGUS wordmark + live indicator + map focus toggle
  * Right: live stats (events, sources, countries, Goldstein, trend, refresh, Zulu)
  */
-export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
+export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile }) {
   const [zuluTime,   setZuluTime]   = useState('');
   const [refreshAge, setRefreshAge] = useState('—');
   const [pulse,      setPulse]      = useState(true);
@@ -155,35 +155,48 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus }) {
       </div>
 
       {/* Right: stats */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-        <StatCell label="EVENTS"       value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9" />
-        <Divider />
-        <StatCell label="SOURCES"      value={(stats?.totalSources ?? 0).toLocaleString()} valueColor="#32a467" />
-        <Divider />
-        <StatCell label="COUNTRIES"    value={stats?.countriesAffected ?? 0}               valueColor="#f6f7f9" />
-        <Divider />
-        <StatCell label="AVG TONE"     value={toneStr}  valueColor={toneColor} mono
-          tooltip="Goldstein Scale average. Negative = conflict pressure." />
-        <Divider />
-        <StatCell
-          label="TREND"
-          value={
-            stats?.trend === 'ESCALATING'    ? '↑ ESCALATING'    :
-            stats?.trend === 'DE-ESCALATING' ? '↓ DE-ESCALATING' :
-                                               '→ STABLE'
-          }
-          valueColor={
-            stats?.trend === 'ESCALATING'    ? '#e76a6e' :
-            stats?.trend === 'DE-ESCALATING' ? '#32a467' :
-                                               '#fbb360'
-          }
-          tooltip="Conflict trend: compares Goldstein avg of recent vs prior events."
-        />
-        <Divider />
-        <StatCell label="LAST REFRESH" value={refreshAge} valueColor="#5f6b7c" mono />
-        <Divider />
-        <StatCell label="ZULU TIME"    value={zuluTime}   valueColor="#abb3bf" mono />
-      </div>
+      {isMobile ? (
+        /* Mobile: condensed — just events + countries + tone */
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
+          <StatCell label="EVENTS"    value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9" />
+          <Divider />
+          <StatCell label="COUNTRIES" value={stats?.countriesAffected ?? 0}              valueColor="#f6f7f9" />
+          <Divider />
+          <StatCell label="TONE"      value={toneStr} valueColor={toneColor} mono
+            tooltip="Goldstein Scale average. Negative = conflict pressure." />
+        </div>
+      ) : (
+        /* Desktop: full stats row */
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
+          <StatCell label="EVENTS"       value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9" />
+          <Divider />
+          <StatCell label="SOURCES"      value={(stats?.totalSources ?? 0).toLocaleString()} valueColor="#32a467" />
+          <Divider />
+          <StatCell label="COUNTRIES"    value={stats?.countriesAffected ?? 0}               valueColor="#f6f7f9" />
+          <Divider />
+          <StatCell label="AVG TONE"     value={toneStr}  valueColor={toneColor} mono
+            tooltip="Goldstein Scale average. Negative = conflict pressure." />
+          <Divider />
+          <StatCell
+            label="TREND"
+            value={
+              stats?.trend === 'ESCALATING'    ? '↑ ESCALATING'    :
+              stats?.trend === 'DE-ESCALATING' ? '↓ DE-ESCALATING' :
+                                                 '→ STABLE'
+            }
+            valueColor={
+              stats?.trend === 'ESCALATING'    ? '#e76a6e' :
+              stats?.trend === 'DE-ESCALATING' ? '#32a467' :
+                                                 '#fbb360'
+            }
+            tooltip="Conflict trend: compares Goldstein avg of recent vs prior events."
+          />
+          <Divider />
+          <StatCell label="LAST REFRESH" value={refreshAge} valueColor="#5f6b7c" mono />
+          <Divider />
+          <StatCell label="ZULU TIME"    value={zuluTime}   valueColor="#abb3bf" mono />
+        </div>
+      )}
     </div>
   );
 }

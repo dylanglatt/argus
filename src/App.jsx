@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEventData } from './hooks/useEventData';
 import { Header } from './components/Header';
 import { FilterPanel } from './components/FilterPanel';
@@ -7,6 +7,16 @@ import { EventFeed } from './components/EventFeed';
 import { TimeChart } from './components/TimeChart';
 import { EventDetailPanel } from './components/EventDetailPanel';
 import { EscalationBanner } from './components/EscalationBanner';
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 /**
  * App — single-viewport layout.
@@ -29,6 +39,8 @@ import { EscalationBanner } from './components/EscalationBanner';
  * └──────────┴───────────────────────┘
  */
 export default function App() {
+  const isMobile = useIsMobile();
+
   const [filters, setFilters] = useState({
     eventTypes:  [],
     countries:   [],
@@ -38,10 +50,12 @@ export default function App() {
     timeWindow:  'ALL',
   });
 
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [mapFocus,      setMapFocus]      = useState(false);
-  const [briefCountry,  setBriefCountry]  = useState(null);
-  const [showThermal,   setShowThermal]   = useState(false);
+  const [selectedEvent,      setSelectedEvent]      = useState(null);
+  const [mapFocus,           setMapFocus]           = useState(false);
+  const [briefCountry,       setBriefCountry]       = useState(null);
+  const [showThermal,        setShowThermal]        = useState(false);
+  const [showMobileFilters,  setShowMobileFilters]  = useState(false);
+  const [showMobileFeed,     setShowMobileFeed]     = useState(false);
 
   const {
     events, filteredEvents, availableCountries,
@@ -52,6 +66,7 @@ export default function App() {
     setSelectedEvent((prev) =>
       prev?.event_id_cnty === event.event_id_cnty ? null : event
     );
+    if (isMobile) setShowMobileFeed(true);
   };
 
   if (loading) return <InitScreen />;
@@ -59,47 +74,115 @@ export default function App() {
   return (
     <div style={{
       width:         '100vw',
-      height:        '100vh',
+      height:        '100dvh',   // dvh: accounts for mobile browser chrome
       display:       'flex',
       flexDirection: 'column',
-      background:    '#111418',    // Blueprint pageBg
+      background:    '#111418',
       overflow:      'hidden',
     }}>
-      {/* Header — 50px (Blueprint navbar) */}
+      {/* Header */}
       <Header
         stats={stats}
         fetchedAt={fetchedAt}
         mapFocus={mapFocus}
         onToggleMapFocus={() => setMapFocus(f => !f)}
+        isMobile={isMobile}
       />
 
-      {/* Escalation banner — hidden when no active escalations */}
+      {/* Escalation banner */}
       <EscalationBanner events={events} onSelectCountry={setBriefCountry} />
 
       {/* Main workspace */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-        {/* Filter panel — 280px */}
-        <FilterPanel
-          filters={filters}
-          onFilterChange={setFilters}
-          availableCountries={availableCountries}
-          allEvents={events}
-          briefCountry={briefCountry}
-          onSelectCountry={setBriefCountry}
-          onCloseBrief={() => setBriefCountry(null)}
-        />
+        {/* Filter panel — desktop: 280px sidebar; mobile: hidden */}
+        {!isMobile && (
+          <FilterPanel
+            filters={filters}
+            onFilterChange={setFilters}
+            availableCountries={availableCountries}
+            allEvents={events}
+            briefCountry={briefCountry}
+            onSelectCountry={setBriefCountry}
+            onCloseBrief={() => setBriefCountry(null)}
+          />
+        )}
+
+        {/* Mobile: filter panel full-screen overlay */}
+        {isMobile && showMobileFilters && (
+          <div style={{
+            position:  'fixed',
+            inset:     0,
+            zIndex:    300,
+            display:   'flex',
+            flexDirection: 'column',
+            background: '#111418',
+          }}>
+            {/* Overlay header */}
+            <div style={{
+              height:         '48px',
+              minHeight:      '48px',
+              background:     '#1c2127',
+              borderBottom:   '1px solid #2f343c',
+              display:        'flex',
+              alignItems:     'center',
+              justifyContent: 'space-between',
+              padding:        '0 16px',
+              flexShrink:     0,
+            }}>
+              <span style={{
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '11px',
+                fontWeight:    700,
+                letterSpacing: '0.12em',
+                color:         '#abb3bf',
+                textTransform: 'uppercase',
+              }}>
+                PARAMETERS
+              </span>
+              <button
+                onClick={() => setShowMobileFilters(false)}
+                style={{
+                  background:   'none',
+                  border:       '1px solid #383e47',
+                  borderRadius: '2px',
+                  color:        '#abb3bf',
+                  fontFamily:   'Inter, sans-serif',
+                  fontSize:     '11px',
+                  fontWeight:   600,
+                  padding:      '4px 14px',
+                  cursor:       'pointer',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                DONE
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <FilterPanel
+                filters={filters}
+                onFilterChange={setFilters}
+                availableCountries={availableCountries}
+                allEvents={events}
+                briefCountry={briefCountry}
+                onSelectCountry={setBriefCountry}
+                onCloseBrief={() => setBriefCountry(null)}
+                fullWidth
+              />
+            </div>
+          </div>
+        )}
 
         {/* Content area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Map + time window strip */}
           <div style={{
-            flex:      mapFocus ? '1 1 auto' : '0 0 65%',
-            display:   'flex',
+            flex:          mapFocus || isMobile ? '1 1 auto' : '0 0 65%',
+            display:       'flex',
             flexDirection: 'column',
-            overflow:  'hidden',
-            transition: 'flex 0.3s ease',
+            overflow:      'hidden',
+            transition:    'flex 0.3s ease',
           }}>
             <TimeWindowBar
               value={filters.timeWindow}
@@ -107,6 +190,7 @@ export default function App() {
               eventCount={filteredEvents.length}
               showThermal={showThermal}
               onToggleThermal={() => setShowThermal((v) => !v)}
+              isMobile={isMobile}
             />
             <MapView
               events={filteredEvents}
@@ -119,13 +203,13 @@ export default function App() {
             />
           </div>
 
-          {/* Bottom panel — hidden in map focus mode */}
-          {!mapFocus && (
+          {/* Desktop: bottom panel */}
+          {!isMobile && !mapFocus && (
             <div style={{
-              flex:     '0 0 35%',
-              display:  'flex',
-              overflow: 'hidden',
-              position: 'relative',
+              flex:      '0 0 35%',
+              display:   'flex',
+              overflow:  'hidden',
+              position:  'relative',
               borderTop: '1px solid #2f343c',
             }}>
               <EventFeed
@@ -135,8 +219,6 @@ export default function App() {
                 onDismiss={dismissEvent}
               />
               <TimeChart events={filteredEvents} />
-
-              {/* Detail panel — absolute overlay */}
               <EventDetailPanel
                 event={selectedEvent}
                 onClose={() => setSelectedEvent(null)}
@@ -145,8 +227,121 @@ export default function App() {
               />
             </div>
           )}
+
+          {/* Mobile: event feed slide-up drawer */}
+          {isMobile && showMobileFeed && (
+            <div style={{
+              position:  'absolute',
+              left:      0,
+              right:     0,
+              bottom:    0,
+              height:    '55%',
+              background: '#1c2127',
+              borderTop: '2px solid #2f343c',
+              display:   'flex',
+              flexDirection: 'column',
+              zIndex:    200,
+              overflow:  'hidden',
+            }}>
+              {/* Feed drawer handle + close */}
+              <div style={{
+                height:         '36px',
+                minHeight:      '36px',
+                display:        'flex',
+                alignItems:     'center',
+                justifyContent: 'space-between',
+                padding:        '0 14px',
+                borderBottom:   '1px solid #2f343c',
+                flexShrink:     0,
+              }}>
+                <span style={{
+                  fontFamily:    'Inter, sans-serif',
+                  fontSize:      '9px',
+                  fontWeight:    700,
+                  letterSpacing: '0.1em',
+                  color:         '#738091',
+                  textTransform: 'uppercase',
+                }}>
+                  EVENT FEED · {filteredEvents.length}
+                </span>
+                <button
+                  onClick={() => { setShowMobileFeed(false); setSelectedEvent(null); }}
+                  style={{
+                    background:   'none',
+                    border:       'none',
+                    color:        '#5f6b7c',
+                    fontSize:     '16px',
+                    cursor:       'pointer',
+                    padding:      '0 4px',
+                    lineHeight:   1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+                <EventFeed
+                  events={filteredEvents}
+                  onEventClick={handleEventClick}
+                  selectedEventId={selectedEvent?.event_id_cnty}
+                  onDismiss={dismissEvent}
+                />
+                <EventDetailPanel
+                  event={selectedEvent}
+                  onClose={() => setSelectedEvent(null)}
+                  onConfirm={confirmEvent}
+                  onDismiss={(id) => { dismissEvent(id); setSelectedEvent(null); }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Mobile bottom nav bar */}
+      {isMobile && (
+        <div style={{
+          height:     '48px',
+          minHeight:  '48px',
+          background: '#1c2127',
+          borderTop:  '1px solid #2f343c',
+          display:    'flex',
+          flexShrink: 0,
+        }}>
+          {[
+            { label: 'FILTERS', icon: '⚙', active: showMobileFilters, action: () => { setShowMobileFilters(v => !v); setShowMobileFeed(false); } },
+            { label: 'FEED',    icon: '☰', active: showMobileFeed,    action: () => { setShowMobileFeed(v => !v); setShowMobileFilters(false); } },
+            { label: 'MAP',     icon: '⊡', active: mapFocus,          action: () => setMapFocus(f => !f) },
+          ].map(({ label, icon, active, action }) => (
+            <button
+              key={label}
+              onClick={action}
+              style={{
+                flex:          1,
+                background:    active ? '#215db015' : 'none',
+                border:        'none',
+                borderTop:     `2px solid ${active ? '#4c90f0' : 'transparent'}`,
+                color:         active ? '#4c90f0' : '#738091',
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '9px',
+                fontWeight:    700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor:        'pointer',
+                display:       'flex',
+                flexDirection: 'column',
+                alignItems:    'center',
+                justifyContent: 'center',
+                gap:           '3px',
+                transition:    'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: '14px', lineHeight: 1 }}>{icon}</span>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Status bar — 26px */}
       <StatusBar dataSource={dataSource} />
@@ -158,7 +353,7 @@ export default function App() {
 
 const TIME_WINDOWS = ['24H', '48H', '72H', 'ALL'];
 
-function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleThermal }) {
+function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleThermal, isMobile }) {
   return (
     <div style={{
       height:       '28px',
@@ -418,7 +613,7 @@ function InitScreen() {
         pointerEvents:   'none',
       }} />
 
-      <div style={{ width: '520px', display: 'flex', flexDirection: 'column', gap: '44px' }}>
+      <div style={{ width: 'min(520px, calc(100vw - 40px))', display: 'flex', flexDirection: 'column', gap: '44px' }}>
 
         {/* Classification badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>

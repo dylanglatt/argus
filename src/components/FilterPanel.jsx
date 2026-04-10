@@ -48,6 +48,7 @@ const INPUT_STYLE = {
 export function FilterPanel({
   filters, onFilterChange, availableCountries = [],
   allEvents = [], briefCountry, onSelectCountry, onCloseBrief,
+  fullWidth = false,
 }) {
   const [countrySearch,       setCountrySearch]       = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
@@ -97,10 +98,10 @@ export function FilterPanel({
 
   return (
     <div style={{
-      width:         '280px',
-      minWidth:      '280px',
-      background:    '#1c2127',    // Blueprint panelBg
-      borderRight:   '1px solid #2f343c',
+      width:         fullWidth ? '100%' : '280px',
+      minWidth:      fullWidth ? 'unset' : '280px',
+      background:    '#1c2127',
+      borderRight:   fullWidth ? 'none' : '1px solid #2f343c',
       overflowY:     'auto',
       display:       'flex',
       flexDirection: 'column',

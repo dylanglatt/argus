@@ -840,8 +840,9 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
     cutoff.setDate(cutoff.getDate() - MAX_AGE_DAYS);
     const cutoffStr = cutoff.toISOString().slice(0, 10); // YYYY-MM-DD
 
-    const merged = [...newFiltered, ...existingEvents]
-      .filter((e) => e.event_date >= cutoffStr);
+    const merged = deduplicateEvents(
+      [...newFiltered, ...existingEvents].filter((e) => e.event_date >= cutoffStr)
+    );
 
     // Sort by date desc, then mentions desc
     merged.sort((a, b) => {
@@ -850,7 +851,7 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
       return b.num_mentions - a.num_mentions;
     });
 
-    console.log(`[gdelt] ${merged.length} total events after merge + prune`);
+    console.log(`[gdelt] ${merged.length} total events after merge + dedup + prune`);
 
     // Persist to disk and update in-memory cache
     saveToDisk(merged, now);
@@ -862,6 +863,106 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
     fetchInFlight = null;
     resolveFlight?.();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Deduplication
+//
+// GDELT frequently emits multiple entries for the same real-world incident:
+// the same airstrike, battle, or attack will appear in successive 15-minute
+// files as different outlets pick up the wire story, each getting its own
+// GLOBALEVENTID. The ID-based dedupe in the fetch loop only catches exact
+// repeats; semantic duplicates require two additional passes.
+//
+// Pass 1 — URL deduplication
+//   Same source_url → same article → keep the entry with more mentions.
+//   Zero false-positive risk: identical URLs are definitionally the same story.
+//
+// Pass 2 — Composite fingerprint + proximity
+//   Group by {event_date, event_type, actor1, country}. Within each group,
+//   any two events whose coordinates are within DEDUP_RADIUS_KM are treated
+//   as the same incident. Keep the higher-coverage entry; add the other's
+//   mentions and sources to it so aggregated coverage isn't lost.
+//   50 km is tight enough to distinguish separate city-level events but wide
+//   enough to catch the same rural incident geocoded to slightly different
+//   centroids across outlets.
+// ---------------------------------------------------------------------------
+const DEDUP_RADIUS_KM = 50;
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R   = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a   =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function deduplicateEvents(events) {
+  // --- Pass 1: URL deduplication ---
+  const byUrl = new Map();
+  const noUrl = [];
+
+  for (const e of events) {
+    if (!e.source_url) {
+      noUrl.push(e);
+      continue;
+    }
+    const existing = byUrl.get(e.source_url);
+    if (!existing || e.num_mentions > existing.num_mentions) {
+      byUrl.set(e.source_url, e);
+    }
+  }
+
+  const afterUrl = [...byUrl.values(), ...noUrl];
+  const urlRemoved = events.length - afterUrl.length;
+
+  // --- Pass 2: Composite fingerprint + proximity ---
+  // Bucket by coarse identity; within each bucket check geo distance.
+  const buckets = new Map();
+  for (const e of afterUrl) {
+    const key = `${e.event_date}|${e.event_type}|${e.actor1}|${e.country}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(e);
+  }
+
+  const kept = [];
+  let proximityRemoved = 0;
+
+  for (const group of buckets.values()) {
+    // Sort highest-coverage first so the canonical event is always the
+    // best-sourced one when a duplicate is found.
+    group.sort((a, b) => b.num_mentions - a.num_mentions);
+
+    const survivors = [];
+    for (const candidate of group) {
+      const isDupe = survivors.some((s) =>
+        haversineKm(candidate.latitude, candidate.longitude, s.latitude, s.longitude) <= DEDUP_RADIUS_KM
+      );
+      if (isDupe) {
+        // Merge coverage into the surviving event — don't lose the signal
+        const survivor = survivors.find((s) =>
+          haversineKm(candidate.latitude, candidate.longitude, s.latitude, s.longitude) <= DEDUP_RADIUS_KM
+        );
+        survivor.num_mentions += candidate.num_mentions;
+        survivor.num_sources  += candidate.num_sources;
+        proximityRemoved++;
+      } else {
+        survivors.push(candidate);
+      }
+    }
+    kept.push(...survivors);
+  }
+
+  console.log(
+    `[dedup] Removed ${urlRemoved} URL dupes + ${proximityRemoved} proximity dupes` +
+    ` — ${kept.length} unique events remain (was ${events.length})`
+  );
+
+  return kept;
 }
 
 // ---------------------------------------------------------------------------

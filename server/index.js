@@ -3,7 +3,13 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { fetchConflictEvents, getCacheFetchedAt } from './gdeltFetcher.js';
 import { mockEvents } from './mockData.js';
-import { dismissEvent, undismissEvent, getDismissedIds, filterDismissed } from './feedbackStore.js';
+import {
+  initFeedbackStore,
+  dismissEvent, undismissEvent,
+  confirmEvent,
+  getDismissedIds, getConfirmedIds,
+  filterDismissed,
+} from './feedbackStore.js';
 import { getFirmsData, corroborateEvent, corroborateBatch } from './firmsService.js';
 import { getReportsForCountry } from './reliefwebService.js';
 
@@ -47,10 +53,10 @@ async function backgroundRefresh() {
   }
 }
 
-// Warm on startup, then refresh on a fixed cadence.
-// The refresh runs whether or not any client is connected — the dashboard
-// always wakes up to current data regardless of how long it's been idle.
-warmCache().then(() => {
+// Initialize feedback store first (loads dismissed/confirmed from Blob),
+// then warm the event cache. Both are non-blocking — the server is ready
+// to accept requests immediately; data arrives as soon as fetches complete.
+initFeedbackStore().then(() => warmCache()).then(() => {
   setInterval(backgroundRefresh, REFRESH_INTERVAL_MS);
 });
 
@@ -127,7 +133,8 @@ app.get('/api/events', async (req, res) => {
     count:        events.length,
     source,
     fetchedAt:    getCacheFetchedAt(),
-    dismissedIds: getDismissedIds(), // Let frontend sync dismissed state on load
+    dismissedIds: getDismissedIds(), // Let frontend sync analyst feedback on load
+    confirmedIds: getConfirmedIds(),
   });
 });
 
@@ -139,10 +146,10 @@ app.get('/api/events', async (req, res) => {
  * POST /api/events/:id/dismiss
  * Mark an event as analyst-identified noise. Persists across restarts.
  */
-app.post('/api/events/:id/dismiss', (req, res) => {
+app.post('/api/events/:id/dismiss', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).json({ error: 'Missing event id' });
-  dismissEvent(id);
+  await dismissEvent(id);
   res.json({ ok: true, dismissed: id });
 });
 
@@ -150,11 +157,22 @@ app.post('/api/events/:id/dismiss', (req, res) => {
  * DELETE /api/events/:id/dismiss
  * Undo a dismissal — restore a previously marked event.
  */
-app.delete('/api/events/:id/dismiss', (req, res) => {
+app.delete('/api/events/:id/dismiss', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).json({ error: 'Missing event id' });
-  undismissEvent(id);
+  await undismissEvent(id);
   res.json({ ok: true, restored: id });
+});
+
+/**
+ * POST /api/events/:id/confirm
+ * Mark an event as analyst-confirmed valid signal. Persists across restarts.
+ */
+app.post('/api/events/:id/confirm', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Missing event id' });
+  await confirmEvent(id);
+  res.json({ ok: true, confirmed: id });
 });
 
 /**

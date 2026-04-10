@@ -1,111 +1,119 @@
 /**
  * feedbackStore.js
  * ----------------
- * Persists analyst-dismissed events across server restarts.
+ * Persists analyst feedback (dismissed / confirmed events) across deploys
+ * using Vercel Blob storage.
  *
- * When an analyst marks an event as noise in the UI, that dismissal is:
- *   1. Written to disk at server/dismissed_events.json
- *   2. Held in an in-memory Set for fast O(1) filtering on every /api/events call
+ * Architecture:
+ *   - In-memory Sets are the fast-path for all O(1) lookups at request time.
+ *   - Blob storage is the durable backing store — a single feedback.json file
+ *     is read once on startup (initFeedbackStore) and overwritten on every
+ *     dismiss or confirm action.
  *
- * This is the analyst-in-the-loop feedback mechanism: over time, dismissed
- * events accumulate and can be used to audit Haiku's prompt or GDELT filters.
+ * Degradation:
+ *   - If BLOB_READ_WRITE_TOKEN is absent (local dev without .env), the store
+ *     operates in-memory only — feedback survives the session but not restarts.
+ *   - Blob write failures are logged and swallowed — the in-memory state is
+ *     always authoritative for the current process.
  *
- * The store is intentionally simple — no TTL, no ML, no clustering.
- * The value is in the accumulation pattern, not the lookup speed.
+ * Blob key: "feedback.json" (no random suffix — always overwrites in place)
  */
 
-import fs   from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { put, head } from '@vercel/blob';
 
-const __dirname  = path.dirname(fileURLToPath(import.meta.url));
-const STORE_PATH = path.join(__dirname, 'dismissed_events.json');
+const BLOB_KEY = 'feedback.json';
 
-// In-memory sets — populated from disk on module load
-let dismissedIds  = new Set();
-let confirmedIds  = new Set();
+// In-memory sets — the hot path for all /api/events filtering
+let dismissedIds = new Set();
+let confirmedIds = new Set();
 
 // ---------------------------------------------------------------------------
-// Load from disk on startup
+// Blob I/O helpers
 // ---------------------------------------------------------------------------
-function loadStore() {
+
+async function loadFromBlob() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
   try {
-    if (fs.existsSync(STORE_PATH)) {
-      const raw  = fs.readFileSync(STORE_PATH, 'utf8');
-      const data = JSON.parse(raw);
-      dismissedIds = new Set((data.dismissed  || []).map(String));
-      confirmedIds = new Set((data.confirmed  || []).map(String));
-      console.log(`[feedback] Loaded ${dismissedIds.size} dismissed / ${confirmedIds.size} confirmed event(s) from disk`);
-    }
+    const meta = await head(BLOB_KEY);
+    if (!meta?.url) return;
+    const res = await fetch(meta.url);
+    if (!res.ok) return;
+    const data = await res.json();
+    dismissedIds = new Set((data.dismissed || []).map(String));
+    confirmedIds = new Set((data.confirmed || []).map(String));
+    console.log(`[feedback] Loaded ${dismissedIds.size} dismissed / ${confirmedIds.size} confirmed from Blob`);
   } catch (err) {
-    console.warn('[feedback] Failed to load dismissed_events.json:', err.message);
-    dismissedIds = new Set();
-    confirmedIds = new Set();
+    // BlobNotFoundError on first deploy is expected — not a real error
+    if (!err.message?.includes('not found')) {
+      console.warn('[feedback] Failed to load from Blob:', err.message);
+    }
   }
 }
 
-function persistStore() {
-  // Note: on Vercel (read-only filesystem), writes will fail silently.
-  // Feedback is optimistically applied in the UI within the session;
-  // durable persistence would require moving this to Vercel Blob/KV.
+async function persistToBlob() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
   try {
-    fs.writeFileSync(
-      STORE_PATH,
-      JSON.stringify({ dismissed: [...dismissedIds], confirmed: [...confirmedIds] }, null, 2),
-      'utf8'
+    await put(
+      BLOB_KEY,
+      JSON.stringify({ dismissed: [...dismissedIds], confirmed: [...confirmedIds] }),
+      { access: 'public', addRandomSuffix: false, contentType: 'application/json' }
     );
   } catch (err) {
-    console.warn('[feedback] Failed to write dismissed_events.json:', err.message);
+    console.warn('[feedback] Failed to persist to Blob:', err.message);
   }
 }
 
-// Initialize on import
-loadStore();
+// ---------------------------------------------------------------------------
+// Initialization — called once at server startup, before the cache warms.
+// ---------------------------------------------------------------------------
+export async function initFeedbackStore() {
+  await loadFromBlob();
+}
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Mark an event as analyst-dismissed noise. Persists to disk. */
-export function dismissEvent(eventId) {
+/** Mark an event as analyst-dismissed noise. Persists to Blob. */
+export async function dismissEvent(eventId) {
   const id = String(eventId);
   dismissedIds.add(id);
   confirmedIds.delete(id);   // can't be both
-  persistStore();
-  console.log(`[feedback] Dismissed event ${id} (total dismissed: ${dismissedIds.size})`);
+  console.log(`[feedback] Dismissed ${id} (total dismissed: ${dismissedIds.size})`);
+  await persistToBlob();
 }
 
-/** Undo a dismissal (analyst corrections). Persists to disk. */
-export function undismissEvent(eventId) {
+/** Undo a dismissal. Persists to Blob. */
+export async function undismissEvent(eventId) {
   dismissedIds.delete(String(eventId));
-  persistStore();
-  console.log(`[feedback] Restored event ${eventId} (total dismissed: ${dismissedIds.size})`);
+  console.log(`[feedback] Restored ${eventId} (total dismissed: ${dismissedIds.size})`);
+  await persistToBlob();
 }
 
-/** Mark an event as analyst-confirmed valid signal. Persists to disk. */
-export function confirmEvent(eventId) {
+/** Mark an event as analyst-confirmed valid signal. Persists to Blob. */
+export async function confirmEvent(eventId) {
   const id = String(eventId);
   confirmedIds.add(id);
   dismissedIds.delete(id);   // can't be both
-  persistStore();
-  console.log(`[feedback] Confirmed event ${id} (total confirmed: ${confirmedIds.size})`);
+  console.log(`[feedback] Confirmed ${id} (total confirmed: ${confirmedIds.size})`);
+  await persistToBlob();
 }
 
-/** Undo a confirmation. Persists to disk. */
-export function unconfirmEvent(eventId) {
+/** Undo a confirmation. Persists to Blob. */
+export async function unconfirmEvent(eventId) {
   confirmedIds.delete(String(eventId));
-  persistStore();
+  await persistToBlob();
 }
 
-/** Fast lookups used in filtering / response. */
-export function isDismissed(eventId)  { return dismissedIds.has(String(eventId)); }
-export function isConfirmed(eventId)  { return confirmedIds.has(String(eventId)); }
+/** Fast lookups used in filtering / response enrichment. */
+export function isDismissed(eventId) { return dismissedIds.has(String(eventId)); }
+export function isConfirmed(eventId) { return confirmedIds.has(String(eventId)); }
 
-/** Return all dismissed IDs (used by the frontend to sync state). */
+/** Return all IDs for frontend sync on load. */
 export function getDismissedIds() { return [...dismissedIds]; }
 export function getConfirmedIds() { return [...confirmedIds]; }
 
-/** Remove dismissed events from an array. Used in /api/events. */
+/** Remove dismissed events from an array. Called in /api/events before serving. */
 export function filterDismissed(events) {
   if (dismissedIds.size === 0) return events;
   return events.filter((e) => !dismissedIds.has(String(e.event_id_cnty)));

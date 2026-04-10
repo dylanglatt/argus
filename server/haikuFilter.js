@@ -94,6 +94,8 @@ NO means ANY of the following:
 - The event is about hate speech, antisemitism, or discrimination WITHOUT physical violence occurring
 - The event describes threats, warnings, or posturing with no actual kinetic action
 - The event is a legal proceeding, arrest, deportation, or court ruling
+- The article is an opinion piece, editorial, analysis, commentary, or retrospective — i.e. it reflects on or analyzes a conflict rather than reporting a specific, new kinetic event
+- The article headline or framing uses constructs like "what X reveals about", "lessons from", "the case for/against", "why X matters", "what we learned", or other analytical/opinion framing
 - The source URL contains terms like court, custody, protective-order, divorce, sports, celebrity, entertainment, or other non-conflict topics
 
 Actor 1: {actor1} (GDELT type: {actor1_type})

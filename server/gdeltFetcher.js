@@ -157,7 +157,7 @@ const CAMEO_DESC = {
   '174': 'Impose embargo, boycott, or sanctions',
   '180': 'Use unconventional force',
   '181': 'Abduct, hijack, or take hostage',
-  '182': 'Physically assault',
+  '182': 'Physical assault',
   '183': 'Conduct bombing',
   '1831': 'Conduct suicide bombing',
   '1832': 'Conduct car bombing',
@@ -357,6 +357,26 @@ function rejectStableCountryNoise(countryCode, actor1_type, actor2_type, goldste
 // hourBucket: the UTC hour of the GDELT file (0, 6, 12, or 18), used to
 // bucket events into 6-hour windows for the TimeChart.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Resolve a raw GDELT source URL.
+// GDELT sometimes records only the root domain (e.g. "https://www.aljazeera.com/")
+// instead of a specific article path. These are useless as primary sources —
+// clicking them takes an analyst to a homepage, not the article.
+// Return null for root-only URLs so the UI can render a degraded state.
+// ---------------------------------------------------------------------------
+function resolveSourceUrl(url) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    // pathname is "/" or empty → root domain only, no article path
+    if (!parsed.pathname || parsed.pathname === '/') return null;
+    return url;
+  } catch {
+    return null; // Malformed URL
+  }
+}
+
 function normalizeRow(cols, hourBucket = 0) {
   if (cols.length < 61) return null;
 
@@ -466,7 +486,7 @@ function normalizeRow(cols, hourBucket = 0) {
     num_sources:     numSources,
     num_articles:    numArticles,
     avg_tone:        Math.round(avgTone * 10) / 10,
-    source_url:      String(cols[C.SOURCEURL] || '').trim(),
+    source_url:      resolveSourceUrl(String(cols[C.SOURCEURL] || '').trim()),
     notes:           buildNotes(eventType, subType, actor1, actor2, location, numMentions, numSources, goldstein),
   };
 }

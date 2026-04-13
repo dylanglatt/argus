@@ -12,16 +12,18 @@
  * GDELT's structural filters (QuadClass, root codes, Goldstein) are CAMEO-derived
  * and inherit these same misclassifications — they cannot fix this.
  *
- * Solution: Route all events except the highest-confidence ones through Haiku
- * for binary YES/NO classification against strict operational criteria.
+ * Solution: Route events through Haiku for structured multi-dimensional scoring.
+ * Returns JSON with five analyst dimensions (credibility, severity, specificity,
+ * novelty, conflict_relevance), a 0–12 total score, tags, confidence, and a
+ * one-line reasoning note. Stored as `ai_classification` on passing events.
  *
- * Auto-pass criteria (Haiku skipped):
+ * Auto-pass criteria (Haiku skipped — no API call needed):
  *   - Actor types include military/rebel/armed group (MIL, REB, SPY, UAF, etc.)
- *   - AND Goldstein ≤ -7 (extreme conflict scale)
- *   - AND num_sources ≥ 10 (widely reported, not single-outlet noise)
+ *   - AND Goldstein ≤ -4 (extreme conflict scale)
+ *   - AND num_sources ≥ 3 (corroborated across multiple outlets)
  *   These are virtually certain to be real combat/atrocity events.
  *
- * Everything else → Haiku YES/NO classification.
+ * Everything else → Haiku structured classification.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -136,51 +138,67 @@ function canAutoPass(event) {
 // ---------------------------------------------------------------------------
 // Haiku classification prompt.
 //
-// The single decisive criterion: does the article describe an event where
-// WEAPONS WERE USED or PEOPLE WERE PHYSICALLY KILLED/INJURED in a military,
-// paramilitary, or armed-group context?
+// Returns a structured JSON assessment across five analyst dimensions:
+//   CREDIBILITY      (0-2): Source quality and corroboration
+//   SEVERITY         (0-3): Real-world physical impact
+//   SPECIFICITY      (0-2): Concreteness of who/what/where/when
+//   NOVELTY          (0-2): New signal vs. known/redundant
+//   CONFLICT_RELEVANCE (0-3): Directness of kinetic/strategic relevance
+//
+// Decision rule: include = true IFF score ≥ 7 AND credibility ≥ 1 AND
+//                conflict_relevance ≥ 2.
 //
 // Design principles:
-//  1. Lead with what we ACCEPT — keeps the model anchored on the right framing
-//  2. Exhaustive REJECT list prevents "conflict-adjacent" false positives
-//  3. Article content (fetched) takes priority over GDELT's sparse actor fields
-//  4. YES response must include a factual note drawn from the article, not GDELT
+//  1. Article content (fetched) takes priority over GDELT's sparse actor fields
+//  2. Structured output surfaces analyst reasoning, not just a pass/fail gate
+//  3. Tags enable downstream UI filtering and pattern analysis
+//  4. Auto-reject patterns listed explicitly to minimize false positives
+//  5. Edge-case escalation signals (troop movements, first violence reports)
+//     are called out for inclusion even at low severity scores
 // ---------------------------------------------------------------------------
-const PROMPT_TEMPLATE = `You are a conflict analyst filtering events for a military intelligence dashboard.
+const PROMPT_TEMPLATE = `You are a fusion analyst at a military intelligence organization classifying news events for an operational conflict dashboard.
 
-The ONLY question you must answer: does this event describe KINETIC VIOLENCE in a military or armed-group context?
+Score this event across five dimensions. Return ONLY valid JSON — no markdown, no explanation outside the JSON.
 
-YES means ALL of the following are true:
-1. Weapons were used, people were physically killed/injured, OR an armed force conducted a specific military operation with clear territorial or physical effect (territory seizure, incursion, shelling of a position, troop deployment into an active combat zone, hostage-taking or abduction by an armed group)
-2. The perpetrators are military forces, armed rebel groups, paramilitary, terrorists, or state security forces acting in a combat role
-3. The context is active armed conflict, war, insurgency, or terrorism — NOT domestic crime, cultural controversy, elections, or diplomatic maneuvering
+DIMENSIONS:
+1. credibility (0-2): 0=noise/rumor/single-outlet  1=plausible but weak  2=multiple outlets or concrete sourcing
+2. severity (0-3): 0=no material impact  1=localized/low-intensity  2=significant violence or infrastructure damage  3=major escalation, mass casualties, or strategic shift
+3. specificity (0-2): 0=vague ("tensions rise", "clashes reported")  1=some detail but ambiguous  2=concrete actors + location + action reported
+4. novelty (0-2): 0=redundant/retrospective/analysis  1=incremental update to ongoing situation  2=new specific incident being reported
+5. conflict_relevance (0-3): 0=unrelated  1=indirect (diplomacy, sanctions, rhetoric)  2=logistics/support/intelligence activity  3=direct kinetic violence or civilian harm
 
-NO means ANY of the following:
-- No weapons were used and no one was physically harmed
-- The violence is domestic crime (murder, road rage, robbery, assault, gang activity)
-- The event is about politics, policy, sanctions, diplomacy, peace talks, or elections
-- The event is about protests, demonstrations, activism, or cultural controversy
-- The event involves celebrities, entertainment, sports, or media disputes
-- The event is about hate speech, antisemitism, or discrimination WITHOUT physical violence occurring
-- The event describes threats, warnings, alerts, or posturing with no actual kinetic action reported
-- Military mobilization, alert-status changes, or force build-ups WITHOUT confirmed combat contact (e.g. "forces placed on alert", "troops massed near border", "military exercises")
-- The event is a legal proceeding, arrest, deportation, or court ruling
-- The article is an opinion piece, editorial, analysis, commentary, or retrospective — i.e. it reflects on or analyzes a conflict rather than reporting a specific, new kinetic event
-- The article headline or framing uses constructs like "what X reveals about", "lessons from", "the case for/against", "why X matters", "what we learned", or other analytical/opinion framing
-- The source URL contains terms like court, custody, protective-order, divorce, sports, celebrity, entertainment, or other non-conflict topics
+INCLUDE = true ONLY IF: (sum ≥ 7) AND (credibility ≥ 1) AND (conflict_relevance ≥ 2)
 
-GDELT structured data (may have sparse or incorrect actors — treat as secondary):
-  Actor 1: {actor1} (GDELT type: {actor1_type})
-  Actor 2: {actor2} (GDELT type: {actor2_type})
-  Event code: {event_type} / {sub_event_type}
+AUTO-REJECT (conflict_relevance = 0, include = false):
+- Domestic crime with no armed-group context
+- Pure political rhetoric, elections, sanctions, diplomacy
+- Protests without violence or escalation
+- Opinion pieces, editorials, retrospectives, analysis
+- Entertainment, sports, celebrity, immigration enforcement
+- Threats or posturing with no confirmed kinetic action
+- Legal proceedings, court rulings, arrests
+
+ALWAYS INCLUDE even if small (these are escalation precursors):
+- First confirmed violence in a previously quiet area
+- Troop movements or verified force deployments
+- Weapons transfers or military logistics
+- Airspace violations or border incursions
+- Cross-border attacks of any scale
+
+GDELT data (secondary — may misclassify via NLP; treat as weak signal):
+  Actor 1: {actor1} (type: {actor1_type})
+  Actor 2: {actor2} (type: {actor2_type})
+  Event: {event_type} / {sub_event_type}
   Location: {location}
-  Source URL: {source_url}
+  Source: {source_url}
 
-Article content (primary source — use this to determine what actually happened):
+Article content (primary — determine what actually happened from this):
 {article_context}
 
-If YES: respond with YES followed by a colon and one factual sentence drawn from the article (specific actors, action, location, and casualty count if reported). Under 120 characters. Prefer actor names from the article over GDELT codes.
-If NO: respond with NO only.`;
+Tags (choose all that apply): battle, explosion, airstrike, civilian_harm, troop_movement, weapons_transfer, border_incident, siege, assassination, hostage, riot, blockade, cross_border_attack, naval_incident, mass_casualty
+
+Return ONLY this JSON structure:
+{"include":BOOL,"score":INT,"breakdown":{"credibility":INT,"severity":INT,"specificity":INT,"novelty":INT,"conflict_relevance":INT},"reasoning":"ONE factual sentence from the article — specific actors, action, location, casualty count if known","tags":["tag1"],"confidence":"low"|"medium"|"high"}`;
 
 // ---------------------------------------------------------------------------
 // Build the article context string injected into the Haiku prompt.
@@ -197,6 +215,48 @@ function buildArticleContext(snippet, slug) {
   }
   if (slug) return `URL headline: ${slug}`;
   return '(article content not available — classify from GDELT fields only)';
+}
+
+// ---------------------------------------------------------------------------
+// Parse a structured JSON classification response from Haiku.
+//
+// The model is instructed to return raw JSON only. In practice it occasionally
+// wraps in markdown fences — we strip those first. If parsing fails entirely,
+// we fall back to checking for a legacy YES/NO prefix so existing cached
+// responses degrade gracefully.
+// ---------------------------------------------------------------------------
+function parseClassification(raw) {
+  if (!raw) return null;
+
+  // Strip markdown code fences if present
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  try {
+    const obj = JSON.parse(cleaned);
+    // Validate required fields
+    if (typeof obj.include !== 'boolean') return null;
+    if (typeof obj.score   !== 'number')  return null;
+    return {
+      include:    obj.include,
+      score:      Math.max(0, Math.min(12, Math.round(obj.score))),
+      breakdown:  obj.breakdown  || null,
+      reasoning:  obj.reasoning  || null,
+      tags:       Array.isArray(obj.tags) ? obj.tags : [],
+      confidence: ['low', 'medium', 'high'].includes(obj.confidence) ? obj.confidence : 'medium',
+    };
+  } catch {
+    // Legacy fallback: binary YES/NO format
+    const upper = cleaned.toUpperCase();
+    if (upper.startsWith('YES')) {
+      const colonIdx = cleaned.indexOf(':');
+      const reasoning = colonIdx !== -1 ? cleaned.slice(colonIdx + 1).trim() : null;
+      return { include: true, score: null, breakdown: null, reasoning, tags: [], confidence: 'medium' };
+    }
+    if (upper.startsWith('NO')) {
+      return { include: false, score: null, breakdown: null, reasoning: null, tags: [], confidence: 'medium' };
+    }
+    return null; // unparseable
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -235,17 +295,22 @@ async function classifyEvent(client, event, snippet = null, retries = 2) {
     try {
       const message = await client.messages.create({
         model:      'claude-haiku-4-5-20251001',
-        max_tokens: 150,
+        max_tokens: 300,   // structured JSON needs more room than a YES/NO + line
         messages:   [{ role: 'user', content: prompt }],
       });
-      const raw = message.content[0]?.text?.trim() || '';
-      const upper = raw.toUpperCase();
-      if (upper.startsWith('YES')) {
-        const colonIdx = raw.indexOf(':');
-        const note = colonIdx !== -1 ? raw.slice(colonIdx + 1).trim() : null;
-        return { pass: true, note };
+      const raw    = message.content[0]?.text?.trim() || '';
+      const result = parseClassification(raw);
+
+      if (!result) {
+        console.warn(`[haiku] Unparseable response for ${event.event_id_cnty}: ${raw.slice(0, 80)}`);
+        return { pass: false, classification: null };
       }
-      return { pass: false, note: null };
+
+      if (result.include) {
+        return { pass: true, classification: result };
+      }
+      return { pass: false, classification: result };
+
     } catch (err) {
       const isRateLimit = err.status === 429;
       if (isRateLimit && attempt < retries) {
@@ -258,13 +323,13 @@ async function classifyEvent(client, event, snippet = null, retries = 2) {
       // Retries exhausted — apply two-tier failure strategy
       if (isHighConfidence) {
         console.warn(`[haiku] ⚠ Fail-open (high-confidence) ${event.event_id_cnty}: ${err.message?.slice(0, 60)}`);
-        return { pass: true, note: null };
+        return { pass: true, classification: null };
       }
       console.warn(`[haiku] Classification failed for ${event.event_id_cnty}: ${err.message?.slice(0, 80)}`);
-      return { pass: false, note: null }; // Fail closed — reject ambiguous events
+      return { pass: false, classification: null }; // Fail closed — reject ambiguous events
     }
   }
-  return { pass: false, note: null };
+  return { pass: false, classification: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -329,14 +394,25 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
     );
 
     for (let j = 0; j < batch.length; j++) {
-      if (results[j].pass) {
-        passed.push({ ...batch[j], notes: results[j].note || batch[j].notes });
+      const { pass, classification } = results[j];
+      const ev = batch[j];
+
+      if (pass) {
+        // Attach structured AI classification to the event.
+        // `notes` is kept for backward compatibility with the UI's NOTES section;
+        // `ai_classification` carries the full structured assessment.
+        const aiNote = classification?.reasoning || ev.notes;
+        passed.push({
+          ...ev,
+          notes:             aiNote,
+          ai_classification: classification || null,
+        });
       } else {
         filtered++;
         console.log(
-          `[haiku] ✗ [${batch[j].event_type}/${batch[j].sub_event_type}]` +
-          ` actors: ${batch[j].actor1}(${batch[j].actor1_type}) vs ${batch[j].actor2}(${batch[j].actor2_type})` +
-          ` — ${batch[j].notes?.slice(0, 80)}`
+          `[haiku] ✗ [${ev.event_type}/${ev.sub_event_type}]` +
+          ` actors: ${ev.actor1}(${ev.actor1_type}) vs ${ev.actor2}(${ev.actor2_type})` +
+          ` score=${classification?.score ?? '?'} — ${(classification?.reasoning || ev.notes)?.slice(0, 80)}`
         );
       }
     }

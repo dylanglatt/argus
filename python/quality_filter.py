@@ -361,11 +361,39 @@ US_LOCAL_DOMAINS = frozenset({
     "nbc12.com", "wtvr.com", "wric.com", "13newsnow.com", "whsv.com",
 })
 
+# Opinion / commentary / advocacy domains — confirmed false-positive sources from
+# live feed audit. These sites publish editorial content, not conflict reporting.
+# Hard-blocked regardless of CAMEO code or actor types (check D in stage_coherence).
+OPINION_DOMAINS = frozenset({
+    # US conservative opinion blog — sourced fabricated Jerusalem + Yemen "events"
+    "ruthfullyyours.com",
+    # Bolivarian advocacy site — sourced Caracas editorial interview as conflict
+    "venezuelanalysis.com",
+    # Canadian tech trade press — sourced a COO hire as Calgary "conflict"
+    "betakit.com",
+    # Far-right political opinion magazines
+    "frontpagemag.com",
+    "amgreatness.com",
+    # Think-tank opinion outlet — policy commentary, not reporting
+    "gatestoneinstitute.org",
+})
+
 # CAMEO sub-event descriptions that indicate kinetic action
 _KINETIC_SUB_EVENTS = frozenset({
     "FIGHT", "ASSAULT", "USE CONVENTIONAL MILITARY FORCE",
     "USE UNCONVENTIONAL MASS VIOLENCE", "ENGAGE IN COMBAT",
 })
+
+
+def _extract_domain(url: str) -> str:
+    """Return the bare hostname (no 'www.' prefix) from a URL string."""
+    parts = url.split("/")
+    if len(parts) < 3:
+        return ""
+    host = parts[2].lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host
 
 
 def stage_coherence(
@@ -377,14 +405,23 @@ def stage_coherence(
     Flags events where GDELT's structured fields contradict each other in ways
     that indicate misclassification rather than a genuine kinetic event.
 
-    Three checks:
+    Four checks:
       A. High severity (Goldstein ≤ -8) with no named actors on either side
       B. Kinetic CAMEO code but no armed actor types and low source count
       C. US local news domain reporting a non-US foreign military event
+      D. Known opinion/commentary/advocacy domain — never a valid conflict source
     """
     valid, rejected = [], []
 
     for event in events:
+        source_url = (event.get("source_url") or "")
+        domain = _extract_domain(source_url) if source_url else ""
+
+        # CHECK D — Opinion/commentary domain hard-block (checked first — cheapest)
+        if domain and domain in OPINION_DOMAINS:
+            rejected.append({**event, "_coherence_flag": f"opinion_domain:{domain}"})
+            continue
+
         # CHECK A — Unknown actor + extreme severity contradiction
         gs = float(event.get("goldstein_scale") or 0)
         a1 = (event.get("actor1") or "").strip()
@@ -408,19 +445,11 @@ def stage_coherence(
                     continue
 
         # CHECK C — US local news domain reporting a non-US foreign event
-        source_url = (event.get("source_url") or "")
         country = (event.get("country") or "").strip()
-        if source_url and country not in ("United States", "Unknown", ""):
-            # Extract domain: "https://www.abc7.com/path" → "abc7.com"
-            parts = source_url.split("/")
-            if len(parts) >= 3:
-                host = parts[2].lower()
-                # Strip leading "www."
-                if host.startswith("www."):
-                    host = host[4:]
-                if host in US_LOCAL_DOMAINS:
-                    rejected.append({**event, "_coherence_flag": "us_local_source_foreign_event"})
-                    continue
+        if domain and country not in ("United States", "Unknown", ""):
+            if domain in US_LOCAL_DOMAINS:
+                rejected.append({**event, "_coherence_flag": "us_local_source_foreign_event"})
+                continue
 
         valid.append(event)
 

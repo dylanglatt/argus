@@ -555,6 +555,22 @@ const REJECT_DOMAINS = new Set([
   'nbcwashington.com', 'myfoxny.com', 'wsbtv.com', 'wral.com', 'komo4.com',
   'kiro7.com', 'kxan.com', 'wbaltv.com', 'wgal.com', 'wpxi.com', 'wtae.com',
   'wjla.com', 'nbc12.com', 'wtvr.com', 'wric.com', '13newsnow.com',
+  // Opinion / political commentary blogs — confirmed false-positives from live audit:
+  // ruthfullyyours.com sourced both a Jerusalem and a Yemen event; content is US
+  // conservative opinion with no original reporting. Not a news outlet.
+  'ruthfullyyours.com',
+  // Bolivarian/chavista advocacy site — opinion and analysis, not news reporting.
+  // Confirmed false-positive: Caracas event sourced from editorial interview.
+  'venezuelanalysis.com',
+  // Canadian tech-startup trade press — no conflict coverage whatsoever.
+  // Confirmed false-positive: Calgary "conflict" was a COO hiring announcement.
+  'betakit.com',
+  // Far-right political opinion magazines — framing routinely triggers CAMEO
+  // conflict codes on domestic US politics / immigration commentary.
+  'frontpagemag.com',
+  'amgreatness.com',
+  // Think-tank opinion outlet — publishes policy commentary, not conflict reporting.
+  'gatestoneinstitute.org',
 ]);
 
 // ---------------------------------------------------------------------------

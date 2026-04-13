@@ -54,7 +54,7 @@ export function TimeChart({ events }) {
   const tickStyle = {
     fontFamily: 'JetBrains Mono, monospace',
     fontSize:   8,
-    fill:       '#5f6b7c',   // Blueprint gray1
+    fill:       '#8492a6',   // Blueprint gray1
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -84,7 +84,7 @@ export function TimeChart({ events }) {
           fontWeight:    600,
           textTransform: 'uppercase',
           letterSpacing: '0.07em',
-          color:         '#738091',
+          color:         '#9caabb',
           marginBottom:  '6px',
         }}>
           {windowLabel} — {total} events
@@ -109,7 +109,7 @@ export function TimeChart({ events }) {
                   transform:  'rotate(45deg)',
                   flexShrink: 0,
                 }} />
-                <span style={{ color: '#abb3bf', fontFamily: 'Inter, sans-serif', fontSize: '10px' }}>
+                <span style={{ color: '#c5cdd9', fontFamily: 'Inter, sans-serif', fontSize: '10px' }}>
                   {EVENT_TYPES[p.dataKey]?.label || p.dataKey}
                 </span>
               </div>
@@ -142,7 +142,7 @@ export function TimeChart({ events }) {
     fontWeight:    600,
     textTransform: 'uppercase',
     letterSpacing: '0.07em',
-    color:         active ? '#abb3bf' : '#738091',
+    color:         active ? '#c5cdd9' : '#9caabb',
     cursor:        'pointer',
     transition:    'all 0.12s',
   });
@@ -172,7 +172,7 @@ export function TimeChart({ events }) {
           fontWeight:    600,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          color:         '#738091',
+          color:         '#9caabb',
         }}>
           ACTIVITY — 6H WINDOWS
         </span>
@@ -183,8 +183,8 @@ export function TimeChart({ events }) {
               key={m}
               onClick={() => setMode(m)}
               style={modeBtn(mode === m)}
-              onMouseEnter={(e) => { if (mode !== m) { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#abb3bf'; }}}
-              onMouseLeave={(e) => { if (mode !== m) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#738091'; }}}
+              onMouseEnter={(e) => { if (mode !== m) { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#c5cdd9'; }}}
+              onMouseLeave={(e) => { if (mode !== m) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9caabb'; }}}
             >
               {m === 'stacked' ? 'BY TYPE' : 'TOTAL'}
             </button>
@@ -192,7 +192,7 @@ export function TimeChart({ events }) {
           <span style={{
             fontFamily: 'JetBrains Mono, monospace',
             fontSize:   '9px',
-            color:      '#5f6b7c',
+            color:      '#8492a6',
             marginLeft: '4px',
           }}>
             7D · UTC
@@ -222,7 +222,7 @@ export function TimeChart({ events }) {
               <span style={{
                 fontFamily: 'Inter, sans-serif',
                 fontSize:   '9px',
-                color:      '#abb3bf',
+                color:      '#c5cdd9',
                 whiteSpace: 'nowrap',
               }}>
                 {type.label.split('/')[0].trim()}
@@ -242,7 +242,7 @@ export function TimeChart({ events }) {
             height:         '100%',
             fontFamily:     'Inter, sans-serif',
             fontSize:       '11px',
-            color:          '#5f6b7c',
+            color:          '#8492a6',
             letterSpacing:  '0.05em',
           }}>
             NO DATA

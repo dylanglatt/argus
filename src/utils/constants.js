@@ -29,9 +29,9 @@ export const COLORS = {
 
   // Text hierarchy
   textPrimary:     '#f6f7f9',   // Blueprint light-gray5
-  textSecondary:   '#abb3bf',   // Blueprint gray4
-  textMuted:       '#738091',   // Blueprint gray2 — labels, column headers
-  textDim:         '#5f6b7c',   // Blueprint gray1 — very muted / timestamps
+  textSecondary:   '#c5cdd9',   // Blueprint gray4 (boosted for readability)
+  textMuted:       '#9caabb',   // Blueprint gray2 — labels, column headers (boosted)
+  textDim:         '#8492a6',   // Blueprint gray1 — dim text / timestamps (boosted)
 
   // Intent colors (Blueprint dark theme)
   blue:            '#4c90f0',   // Blueprint blue4 — primary accent / focus

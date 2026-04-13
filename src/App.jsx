@@ -136,7 +136,7 @@ export default function App() {
                 fontSize:      '11px',
                 fontWeight:    700,
                 letterSpacing: '0.12em',
-                color:         '#abb3bf',
+                color:         '#c5cdd9',
                 textTransform: 'uppercase',
               }}>
                 PARAMETERS
@@ -147,7 +147,7 @@ export default function App() {
                   background:   'none',
                   border:       '1px solid #383e47',
                   borderRadius: '2px',
-                  color:        '#abb3bf',
+                  color:        '#c5cdd9',
                   fontFamily:   'Inter, sans-serif',
                   fontSize:     '11px',
                   fontWeight:   600,
@@ -261,7 +261,7 @@ export default function App() {
                   fontSize:      '9px',
                   fontWeight:    700,
                   letterSpacing: '0.1em',
-                  color:         '#738091',
+                  color:         '#9caabb',
                   textTransform: 'uppercase',
                 }}>
                   EVENT FEED · {filteredEvents.length}
@@ -271,7 +271,7 @@ export default function App() {
                   style={{
                     background:   'none',
                     border:       'none',
-                    color:        '#5f6b7c',
+                    color:        '#8492a6',
                     fontSize:     '16px',
                     cursor:       'pointer',
                     padding:      '0 4px',
@@ -323,7 +323,7 @@ export default function App() {
                 background:    active ? '#215db015' : 'none',
                 border:        'none',
                 borderTop:     `2px solid ${active ? '#4c90f0' : 'transparent'}`,
-                color:         active ? '#4c90f0' : '#738091',
+                color:         active ? '#4c90f0' : '#9caabb',
                 fontFamily:    'Inter, sans-serif',
                 fontSize:      '9px',
                 fontWeight:    700,
@@ -374,7 +374,7 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
         fontWeight:    600,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
-        color:         '#5f6b7c',   // Blueprint gray1
+        color:         '#8492a6',   // Blueprint gray1
         marginRight:   '8px',
       }}>
         WINDOW
@@ -396,21 +396,21 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
               fontWeight:    600,
               textTransform: 'uppercase',
               letterSpacing: '0.07em',
-              color:         active ? '#f6f7f9' : '#738091',
+              color:         active ? '#f6f7f9' : '#9caabb',
               cursor:        'pointer',
               transition:    'all 0.12s',
             }}
             onMouseEnter={(e) => {
               if (!active) {
                 e.currentTarget.style.background  = '#2f343c';
-                e.currentTarget.style.color       = '#abb3bf';
+                e.currentTarget.style.color       = '#c5cdd9';
                 e.currentTarget.style.borderColor = '#404854';
               }
             }}
             onMouseLeave={(e) => {
               if (!active) {
                 e.currentTarget.style.background  = '#252a31';
-                e.currentTarget.style.color       = '#738091';
+                e.currentTarget.style.color       = '#9caabb';
                 e.currentTarget.style.borderColor = '#383e47';
               }
             }}
@@ -441,7 +441,7 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
           fontWeight:    600,
           textTransform: 'uppercase',
           letterSpacing: '0.07em',
-          color:         showThermal ? '#ec9a3c' : '#738091',
+          color:         showThermal ? '#ec9a3c' : '#9caabb',
           cursor:        'pointer',
           transition:    'all 0.12s',
           display:       'flex',
@@ -451,14 +451,14 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
         onMouseEnter={(e) => {
           if (!showThermal) {
             e.currentTarget.style.background  = '#2f343c';
-            e.currentTarget.style.color       = '#abb3bf';
+            e.currentTarget.style.color       = '#c5cdd9';
             e.currentTarget.style.borderColor = '#404854';
           }
         }}
         onMouseLeave={(e) => {
           if (!showThermal) {
             e.currentTarget.style.background  = '#252a31';
-            e.currentTarget.style.color       = '#738091';
+            e.currentTarget.style.color       = '#9caabb';
             e.currentTarget.style.borderColor = '#383e47';
           }
         }}
@@ -467,7 +467,7 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
           width:        '5px',
           height:       '5px',
           borderRadius: '50%',
-          background:   showThermal ? '#ec9a3c' : '#5f6b7c',
+          background:   showThermal ? '#ec9a3c' : '#8492a6',
           display:      'inline-block',
           boxShadow:    showThermal ? '0 0 4px #ec9a3c' : 'none',
           transition:   'all 0.15s',
@@ -479,7 +479,7 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
         marginLeft:  'auto',
         fontFamily:  'JetBrains Mono, monospace',
         fontSize:    '10px',
-        color:       '#5f6b7c',
+        color:       '#8492a6',
       }}>
         {eventCount.toLocaleString()} events
       </span>
@@ -743,7 +743,7 @@ function StatusBar({ dataSource }) {
     dataSource === 'gdelt_live'  ? 'GDELT 2.0 · LIVE' :
     dataSource === 'gdelt'       ? 'GDELT 2.0 EVENT DATABASE' :
                                    'MOCK DATA';
-  const sourceColor = isLive ? '#32a467' : '#5f6b7c';  // Blueprint green4 / gray1
+  const sourceColor = isLive ? '#32a467' : '#8492a6';  // Blueprint green4 / gray1
 
   return (
     <div style={{

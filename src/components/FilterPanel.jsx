@@ -11,7 +11,7 @@ const LABEL_STYLE = {
   fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color:         '#738091',    // Blueprint gray2
+  color:         '#9caabb',    // Blueprint gray2
 };
 
 const SECTION_GAP = { marginBottom: '20px' };
@@ -26,7 +26,7 @@ const INPUT_STYLE = {
   padding:      '7px 10px',
   fontFamily:   'Inter, sans-serif',
   fontSize:     '11px',
-  color:        '#abb3bf',     // Blueprint gray4
+  color:        '#c5cdd9',     // Blueprint gray4
   outline:      'none',
   transition:   'border-color 0.15s',
 };
@@ -136,7 +136,7 @@ export function FilterPanel({
           paddingBottom:  '10px',
           borderBottom:   '1px solid #383e47',
         }}>
-          <span style={{ ...LABEL_STYLE, color: '#abb3bf' }}>PARAMETERS</span>
+          <span style={{ ...LABEL_STYLE, color: '#c5cdd9' }}>PARAMETERS</span>
           {hasActiveFilters && (
             <span style={{
               fontFamily:    'Inter, sans-serif',
@@ -223,7 +223,7 @@ export function FilterPanel({
                     fontFamily: 'Inter, sans-serif',
                     fontSize:   '11px',
                     fontWeight: isSelected ? 500 : 400,
-                    color:      isSelected ? '#f6f7f9' : '#abb3bf',
+                    color:      isSelected ? '#f6f7f9' : '#c5cdd9',
                     flex:       1,
                   }}>
                     {type.label}
@@ -283,7 +283,7 @@ export function FilterPanel({
                       fontFamily: 'Inter, sans-serif',
                       fontSize:   '11px',
                       fontWeight: isSelected ? 600 : 400,
-                      color:      isSelected ? '#f6f7f9' : '#abb3bf',
+                      color:      isSelected ? '#f6f7f9' : '#c5cdd9',
                       lineHeight: 1.2,
                     }}>
                       {label}
@@ -291,7 +291,7 @@ export function FilterPanel({
                     <div style={{
                       fontFamily: 'Inter, sans-serif',
                       fontSize:   '9px',
-                      color:      '#5f6b7c',
+                      color:      '#8492a6',
                       marginTop:  '1px',
                     }}>
                       {desc}
@@ -323,7 +323,7 @@ export function FilterPanel({
                   style={{
                     fontFamily:   'Inter, sans-serif',
                     fontSize:     '10px',
-                    color:        '#abb3bf',
+                    color:        '#c5cdd9',
                     background:   '#252a31',
                     border:       '1px solid #4c90f040',
                     borderRadius: '2px',
@@ -335,10 +335,10 @@ export function FilterPanel({
                     transition:   'all 0.1s',
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#4c90f0'; e.currentTarget.style.color = '#f6f7f9'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#4c90f040'; e.currentTarget.style.color = '#abb3bf'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#4c90f040'; e.currentTarget.style.color = '#c5cdd9'; }}
                 >
                   {c}
-                  <span style={{ color: '#5f6b7c', fontSize: '9px' }}>×</span>
+                  <span style={{ color: '#8492a6', fontSize: '9px' }}>×</span>
                 </span>
               ))}
             </div>
@@ -379,7 +379,7 @@ export function FilterPanel({
                         padding:      '7px 10px',
                         fontFamily:   'Inter, sans-serif',
                         fontSize:     '11px',
-                        color:        selected ? '#f6f7f9' : '#abb3bf',
+                        color:        selected ? '#f6f7f9' : '#c5cdd9',
                         background:   selected ? '#2f343c' : 'transparent',
                         cursor:       'pointer',
                         borderBottom: '1px solid #2f343c',
@@ -443,7 +443,7 @@ export function FilterPanel({
             <span style={{
               fontFamily:   'JetBrains Mono, monospace',
               fontSize:     '10px',
-              color:        impactMin >= 7 ? '#e76a6e' : impactMin >= 4 ? '#fbb360' : '#738091',
+              color:        impactMin >= 7 ? '#e76a6e' : impactMin >= 4 ? '#fbb360' : '#9caabb',
               background:   '#252a31',
               border:       '1px solid #383e47',
               borderRadius: '2px',
@@ -462,7 +462,7 @@ export function FilterPanel({
             style={{ width: '100%', accentColor: '#4c90f0' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-            <span style={{ ...LABEL_STYLE, fontSize: '9px', color: '#5f6b7c' }}>LOW</span>
+            <span style={{ ...LABEL_STYLE, fontSize: '9px', color: '#8492a6' }}>LOW</span>
             <span style={{
               fontFamily:    'Inter, sans-serif',
               fontSize:      '8px',
@@ -504,7 +504,7 @@ export function FilterPanel({
             fontWeight:    600,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color:         '#738091',
+            color:         '#9caabb',
             cursor:        'pointer',
             transition:    'all 0.15s',
             marginBottom:  '16px',
@@ -516,7 +516,7 @@ export function FilterPanel({
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background  = '#252a31';
-            e.currentTarget.style.color       = '#738091';
+            e.currentTarget.style.color       = '#9caabb';
             e.currentTarget.style.borderColor = '#383e47';
           }}
         >
@@ -550,7 +550,7 @@ export function FilterPanel({
             }}>
               ⚠ SOURCE BIAS
             </span>
-            <span style={{ color: '#738091', fontSize: '10px' }}>
+            <span style={{ color: '#9caabb', fontSize: '10px' }}>
               {biasExpanded ? '▲' : '▼'}
             </span>
           </div>
@@ -559,7 +559,7 @@ export function FilterPanel({
               padding:    '0 10px 10px',
               fontFamily: 'Inter, sans-serif',
               fontSize:   '10px',
-              color:      '#abb3bf',
+              color:      '#c5cdd9',
               lineHeight: '1.55',
               borderTop:  '1px solid #383e47',
               paddingTop: '8px',

@@ -114,7 +114,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
   const colorExpr = [
     'match', ['get', 'type'],
     ...Object.entries(EVENT_TYPES).flatMap(([key, t]) => [key, t.color]),
-    '#abb3bf',
+    '#c5cdd9',
   ];
 
   const handleMapClick = (e) => {
@@ -187,10 +187,10 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
         justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Inter', fontSize: '11px', color: '#738091', letterSpacing: '0.05em' }}>
+          <div style={{ fontFamily: 'Inter', fontSize: '11px', color: '#9caabb', letterSpacing: '0.05em' }}>
             MAP UNAVAILABLE
           </div>
-          <div style={{ fontFamily: 'Inter', fontSize: '10px', color: '#5f6b7c', marginTop: '4px' }}>
+          <div style={{ fontFamily: 'Inter', fontSize: '10px', color: '#8492a6', marginTop: '4px' }}>
             Configure VITE_MAPBOX_TOKEN to enable
           </div>
         </div>
@@ -219,10 +219,10 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="32" height="32"
             style={{ animation: 'argus-spin 3s linear infinite', opacity: 0.4 }}>
             <style>{`@keyframes argus-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-            <line x1="100" y1="0"   x2="100" y2="200" stroke="#5f6b7c" strokeWidth="3"/>
-            <line x1="0"   y1="100" x2="200" y2="100" stroke="#5f6b7c" strokeWidth="3"/>
-            <circle cx="100" cy="100" r="82" fill="none" stroke="#5f6b7c" strokeWidth="3.5"/>
-            <circle cx="100" cy="100" r="28" fill="none" stroke="#5f6b7c" strokeWidth="3.5"/>
+            <line x1="100" y1="0"   x2="100" y2="200" stroke="#8492a6" strokeWidth="3"/>
+            <line x1="0"   y1="100" x2="200" y2="100" stroke="#8492a6" strokeWidth="3"/>
+            <circle cx="100" cy="100" r="82" fill="none" stroke="#8492a6" strokeWidth="3.5"/>
+            <circle cx="100" cy="100" r="28" fill="none" stroke="#8492a6" strokeWidth="3.5"/>
           </svg>
           <span style={{
             fontFamily:    'Inter, sans-serif',
@@ -485,7 +485,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             fontWeight:    700,
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
-            color:         '#738091',
+            color:         '#9caabb',
           }}>
             THEATER OVERVIEW
           </span>
@@ -521,7 +521,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             fontFamily:    'Inter, sans-serif',
             fontSize:      '9px',
             fontWeight:    500,
-            color:         isStale ? '#ec9a3c' : '#738091',
+            color:         isStale ? '#ec9a3c' : '#9caabb',
             letterSpacing: '0.05em',
           }}>
             {isStale ? 'DATA STALE · REFRESH PENDING' : 'GDELT + UCDP · HOURLY REFRESH'}
@@ -547,7 +547,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           fontWeight:    700,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          color:         '#738091',
+          color:         '#9caabb',
           marginBottom:  '7px',
         }}>
           EVENT TYPES
@@ -574,7 +574,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
                 <span style={{
                   fontFamily: 'Inter, sans-serif',
                   fontSize:   '9px',
-                  color:      '#738091',
+                  color:      '#9caabb',
                   whiteSpace: 'nowrap',
                 }}>
                   {type.label.split('/')[0].trim()}
@@ -583,7 +583,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
               <span style={{
                 fontFamily: 'JetBrains Mono, monospace',
                 fontSize:   '9px',
-                color:      '#738091',
+                color:      '#9caabb',
               }}>
                 {count}
               </span>
@@ -603,7 +603,7 @@ function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose
   const impactColor =
     score >= 8 ? '#e76a6e' :
     score >= 5 ? '#fbb360' :
-                 '#738091';
+                 '#9caabb';
 
   const tone     = event.avg_tone ?? 0;
   const toneColor = tone < -5 ? '#e76a6e' : tone < 0 ? '#fbb360' : '#32a467';
@@ -617,7 +617,7 @@ function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose
         fontWeight:    700,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
-        color:         eventType?.color || '#abb3bf',
+        color:         eventType?.color || '#c5cdd9',
         marginBottom:  '4px',
         display:       'flex',
         alignItems:    'center',
@@ -626,7 +626,7 @@ function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose
         <div style={{
           width:      '5px',
           height:     '5px',
-          background: eventType?.color || '#abb3bf',
+          background: eventType?.color || '#c5cdd9',
           transform:  'rotate(45deg)',
           flexShrink: 0,
         }} />
@@ -661,14 +661,14 @@ function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose
             fontSize:      '9px',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
-            color:         '#738091',
+            color:         '#9caabb',
             marginBottom:  '3px',
           }}>
             NOTES
           </div>
           <div style={{
             fontSize:            '10px',
-            color:               '#abb3bf',
+            color:               '#c5cdd9',
             lineHeight:          '1.5',
             display:             '-webkit-box',
             WebkitLineClamp:     3,
@@ -819,11 +819,11 @@ function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose
               fontWeight:    700,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              color:         '#738091',
+              color:         '#9caabb',
               cursor:        'pointer',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = '#f6f7f9'; e.currentTarget.style.borderColor = '#3a3a50'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#738091'; e.currentTarget.style.borderColor = '#2f343c'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#9caabb'; e.currentTarget.style.borderColor = '#2f343c'; }}
           >
             COUNTRY BRIEF
           </button>
@@ -840,7 +840,7 @@ function Detail({ label, value, mono, valueColor }) {
         fontSize:      '9px',
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
-        color:         '#738091',
+        color:         '#9caabb',
         marginBottom:  '1px',
       }}>
         {label}
@@ -848,7 +848,7 @@ function Detail({ label, value, mono, valueColor }) {
       <div style={{
         fontSize:     '11px',
         fontFamily:   mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
-        color:        valueColor || '#abb3bf',
+        color:        valueColor || '#c5cdd9',
         fontWeight:   mono ? 500 : 400,
         whiteSpace:   'nowrap',
         overflow:     'hidden',

@@ -125,7 +125,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
             fontWeight:    600,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color:         '#738091',  // Blueprint gray2
+            color:         '#9caabb',  // Blueprint gray2
           }}>
             LIVE
           </span>
@@ -145,21 +145,21 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
             fontWeight:    600,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color:         mapFocus ? '#32a467' : '#738091',
+            color:         mapFocus ? '#32a467' : '#9caabb',
             cursor:        'pointer',
             transition:    'all 0.15s',
           }}
           onMouseEnter={(e) => {
             if (!mapFocus) {
               e.currentTarget.style.background   = '#2f343c';
-              e.currentTarget.style.color        = '#abb3bf';
+              e.currentTarget.style.color        = '#c5cdd9';
               e.currentTarget.style.borderColor  = '#404854';
             }
           }}
           onMouseLeave={(e) => {
             if (!mapFocus) {
               e.currentTarget.style.background  = '#252a31';
-              e.currentTarget.style.color       = '#738091';
+              e.currentTarget.style.color       = '#9caabb';
               e.currentTarget.style.borderColor = '#383e47';
             }
           }}
@@ -184,13 +184,13 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
               fontFamily:    'Inter, sans-serif',
               fontSize:      '10px',
               fontWeight:    600,
-              color:         showAbout ? '#4c90f0' : '#738091',
+              color:         showAbout ? '#4c90f0' : '#9caabb',
               cursor:        'pointer',
               transition:    'all 0.15s',
               flexShrink:    0,
             }}
-            onMouseEnter={(e) => { if (!showAbout) { e.currentTarget.style.color = '#abb3bf'; e.currentTarget.style.borderColor = '#404854'; }}}
-            onMouseLeave={(e) => { if (!showAbout) { e.currentTarget.style.color = '#738091'; e.currentTarget.style.borderColor = '#383e47'; }}}
+            onMouseEnter={(e) => { if (!showAbout) { e.currentTarget.style.color = '#c5cdd9'; e.currentTarget.style.borderColor = '#404854'; }}}
+            onMouseLeave={(e) => { if (!showAbout) { e.currentTarget.style.color = '#9caabb'; e.currentTarget.style.borderColor = '#383e47'; }}}
           >
             ?
           </button>
@@ -235,7 +235,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
               <div style={{
                 fontFamily:  'Inter, sans-serif',
                 fontSize:    '11px',
-                color:       '#abb3bf',
+                color:       '#c5cdd9',
                 lineHeight:  1.6,
                 marginBottom:'12px',
               }}>
@@ -255,10 +255,10 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
                 <span style={{
                   fontFamily:    'Inter, sans-serif',
                   fontSize:      '10px',
-                  color:         '#5f6b7c',
+                  color:         '#8492a6',
                   letterSpacing: '0.04em',
                 }}>
-                  Built by <span style={{ color: '#abb3bf', fontWeight: 600 }}>Dylan Glatt</span>
+                  Built by <span style={{ color: '#c5cdd9', fontWeight: 600 }}>Dylan Glatt</span>
                 </span>
                 <a
                   href="https://github.com/dylanglatt/argus"
@@ -311,7 +311,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
           <StatCell
             label="KIA (UCDP)"
             value={stats?.totalFatalities > 0 ? (stats.totalFatalities).toLocaleString() : 'N/A'}
-            valueColor={stats?.totalFatalities > 0 ? '#e76a6e' : '#404854'}
+            valueColor={stats?.totalFatalities > 0 ? '#e76a6e' : '#6a7585'}
             tooltip="Confirmed fatality estimates from UCDP validated events only. Shows N/A when no UCDP events are in the current filter window."
           />
           <Divider />
@@ -335,9 +335,9 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
             tooltip="Conflict trend: compares Goldstein avg of recent vs prior events."
           />
           <Divider />
-          <StatCell label="LAST REFRESH" value={refreshAge} valueColor="#5f6b7c" mono />
+          <StatCell label="LAST REFRESH" value={refreshAge} valueColor="#8492a6" mono />
           <Divider />
-          <StatCell label="ZULU TIME"    value={zuluTime}   valueColor="#abb3bf" mono />
+          <StatCell label="ZULU TIME"    value={zuluTime}   valueColor="#c5cdd9" mono />
         </div>
       )}
     </div>
@@ -356,7 +356,7 @@ function StatCell({ label, value, valueColor, mono, tooltip }) {
         fontWeight:    600,
         textTransform: 'uppercase',
         letterSpacing: '0.07em',
-        color:         '#738091',   // Blueprint gray2
+        color:         '#9caabb',   // Blueprint gray2
         marginBottom:  '2px',
       }}>
         {label}

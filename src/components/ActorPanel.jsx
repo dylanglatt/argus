@@ -6,7 +6,7 @@ const LABEL_STYLE = {
   fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color:         '#738091',    // Blueprint gray2
+  color:         '#9caabb',    // Blueprint gray2
 };
 
 /**
@@ -104,7 +104,7 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
               <span style={{
                 fontFamily:   'Inter, sans-serif',
                 fontSize:     '11px',
-                color:        isActive ? '#f6f7f9' : '#abb3bf',
+                color:        isActive ? '#f6f7f9' : '#c5cdd9',
                 overflow:     'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace:   'nowrap',
@@ -116,7 +116,7 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
               <span style={{
                 fontFamily: 'JetBrains Mono, monospace',
                 fontSize:   '9px',
-                color:      isActive ? '#4c90f0' : '#5f6b7c',
+                color:      isActive ? '#4c90f0' : '#8492a6',
                 flexShrink: 0,
               }}>
                 {count}

@@ -8,7 +8,7 @@ const COL_LABEL = {
   fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
-  color:         '#738091',    // Blueprint gray2
+  color:         '#9caabb',    // Blueprint gray2
   padding:       '0 8px',
   whiteSpace:    'nowrap',
 };
@@ -24,7 +24,7 @@ const sortBtn = (active) => ({
   fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
-  color:         active ? '#abb3bf' : '#738091',
+  color:         active ? '#c5cdd9' : '#9caabb',
   cursor:        'pointer',
   transition:    'all 0.12s',
 });
@@ -72,7 +72,7 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
           fontWeight:    600,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          color:         '#738091',
+          color:         '#9caabb',
         }}>
           EVENT FEED
         </span>
@@ -80,23 +80,23 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
           <button
             style={sortBtn(sortBy === 'impact')}
             onClick={() => setSortBy('impact')}
-            onMouseEnter={(e) => { if (sortBy !== 'impact') { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#abb3bf'; }}}
-            onMouseLeave={(e) => { if (sortBy !== 'impact') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#738091'; }}}
+            onMouseEnter={(e) => { if (sortBy !== 'impact') { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#c5cdd9'; }}}
+            onMouseLeave={(e) => { if (sortBy !== 'impact') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9caabb'; }}}
           >
             IMPACT
           </button>
           <button
             style={sortBtn(sortBy === 'date')}
             onClick={() => setSortBy('date')}
-            onMouseEnter={(e) => { if (sortBy !== 'date') { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#abb3bf'; }}}
-            onMouseLeave={(e) => { if (sortBy !== 'date') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#738091'; }}}
+            onMouseEnter={(e) => { if (sortBy !== 'date') { e.currentTarget.style.background = '#252a31'; e.currentTarget.style.color = '#c5cdd9'; }}}
+            onMouseLeave={(e) => { if (sortBy !== 'date') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9caabb'; }}}
           >
             DATE
           </button>
           <span style={{
             fontFamily: 'JetBrains Mono, monospace',
             fontSize:   '10px',
-            color:      '#5f6b7c',
+            color:      '#8492a6',
             marginLeft: '6px',
           }}>
             {events.length.toLocaleString()}
@@ -136,7 +136,7 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
             height:         '100%',
             fontFamily:     'Inter, sans-serif',
             fontSize:       '11px',
-            color:          '#5f6b7c',
+            color:          '#8492a6',
             letterSpacing:  '0.05em',
           }}>
             NO EVENTS MATCH CURRENT PARAMETERS
@@ -171,7 +171,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
   const impactColor =
     isHighImpact ? '#e76a6e' :  // Blueprint red4
     isMedImpact  ? '#fbb360' :  // Blueprint orange5
-                   '#5f6b7c';   // Blueprint gray1
+                   '#8492a6';   // Blueprint gray1
 
   // Left accent bar color
   const accentColor =
@@ -215,7 +215,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
       <span style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize:   '10px',
-        color:      '#5f6b7c',   // Blueprint gray1
+        color:      '#8492a6',   // Blueprint gray1
         padding:    '0 6px',
         whiteSpace: 'nowrap',
       }}>
@@ -227,7 +227,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         <span style={{
           width:      '5px',
           height:     '5px',
-          background: eventType?.color || '#738091',
+          background: eventType?.color || '#9caabb',
           transform:  'rotate(45deg)',
           display:    'inline-block',
           flexShrink: 0,
@@ -287,7 +287,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
       <span style={{
         fontFamily:   'Inter, sans-serif',
         fontSize:     '10px',
-        color:        event.actor1 === 'Unknown' ? '#5f6b7c' : '#abb3bf',
+        color:        event.actor1 === 'Unknown' ? '#8492a6' : '#c5cdd9',
         padding:      '0 8px',
         overflow:     'hidden',
         textOverflow: 'ellipsis',
@@ -369,14 +369,14 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
               cursor:       'pointer',
               fontFamily:   'Inter, sans-serif',
               fontSize:     '11px',
-              color:        '#738091',
+              color:        '#9caabb',
               lineHeight:   1,
               padding:      '2px 3px',
               borderRadius: '2px',
               transition:   'color 0.1s',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.color = '#e76a6e')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#738091')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#9caabb')}
           >
             ✕
           </button>

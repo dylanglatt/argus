@@ -7,7 +7,7 @@ const LABEL_STYLE = {
   fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color:         '#738091',    // Blueprint gray2
+  color:         '#9caabb',    // Blueprint gray2
 };
 
 /**
@@ -188,7 +188,7 @@ export function CountryBrief({ country, events, onClose }) {
             <div style={{
               fontFamily: 'JetBrains Mono, monospace',
               fontSize:   '9px',
-              color:      '#5f6b7c',
+              color:      '#8492a6',
               marginTop:  '3px',
             }}>
               {brief.windowStart} → {brief.windowEnd}
@@ -202,7 +202,7 @@ export function CountryBrief({ country, events, onClose }) {
               background:    '#252a31',
               border:        '1px solid #383e47',
               borderRadius:  '2px',
-              color:         '#738091',
+              color:         '#9caabb',
               padding:       '4px 10px',
               cursor:        'pointer',
               fontFamily:    'Inter, sans-serif',
@@ -218,7 +218,7 @@ export function CountryBrief({ country, events, onClose }) {
               e.currentTarget.style.borderColor = '#404854';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color       = '#738091';
+              e.currentTarget.style.color       = '#9caabb';
               e.currentTarget.style.background  = '#252a31';
               e.currentTarget.style.borderColor = '#383e47';
             }}
@@ -258,7 +258,7 @@ export function CountryBrief({ country, events, onClose }) {
                     fontFamily:    'Inter, sans-serif',
                     fontSize:      '8px',
                     fontWeight:    600,
-                    color:         '#738091',
+                    color:         '#9caabb',
                     background:    '#252a31',
                     border:        '1px solid #383e47',
                     borderRadius:  '2px',
@@ -304,7 +304,7 @@ export function CountryBrief({ country, events, onClose }) {
               <div style={{
                 fontFamily:  'Inter, sans-serif',
                 fontSize:    '10px',
-                color:       '#abb3bf',
+                color:       '#c5cdd9',
                 lineHeight:  '1.65',
                 whiteSpace:  'pre-wrap',
               }}>
@@ -313,7 +313,7 @@ export function CountryBrief({ country, events, onClose }) {
               <div style={{
                 fontFamily:    'Inter, sans-serif',
                 fontSize:      '8px',
-                color:         '#404854',
+                color:         '#6a7585',
                 marginTop:     '8px',
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
@@ -331,7 +331,7 @@ export function CountryBrief({ country, events, onClose }) {
               borderRadius: '2px',
               fontFamily:   'Inter, sans-serif',
               fontSize:     '10px',
-              color:        '#5f6b7c',
+              color:        '#8492a6',
             }}>
               No data available for this country.
             </div>
@@ -360,7 +360,7 @@ export function CountryBrief({ country, events, onClose }) {
               <div key={actor} style={{
                 fontFamily:   'Inter, sans-serif',
                 fontSize:     '11px',
-                color:        '#abb3bf',
+                color:        '#c5cdd9',
                 padding:      '4px 8px',
                 borderLeft:   '2px solid #383e47',
                 marginBottom: '3px',
@@ -390,19 +390,19 @@ export function CountryBrief({ country, events, onClose }) {
                   <div style={{
                     width:      '5px',
                     height:     '5px',
-                    background: typeInfo?.color || '#738091',
+                    background: typeInfo?.color || '#9caabb',
                     transform:  'rotate(45deg)',
                     flexShrink: 0,
                   }} />
-                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#abb3bf' }}>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#c5cdd9' }}>
                     {type.split('/')[0].trim()}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#738091' }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#9caabb' }}>
                     {pct}%
                   </span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#383e47' }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#8492a6' }}>
                     {count}
                   </span>
                 </div>
@@ -414,7 +414,7 @@ export function CountryBrief({ country, events, onClose }) {
                   left:         0,
                   height:       '100%',
                   width:        `${pct}%`,
-                  background:   typeInfo?.color || '#738091',
+                  background:   typeInfo?.color || '#9caabb',
                   opacity:      0.75,
                   borderRadius: '1px',
                 }} />
@@ -431,7 +431,7 @@ export function CountryBrief({ country, events, onClose }) {
           <div style={{
             fontFamily:    'Inter, sans-serif',
             fontSize:      '9px',
-            color:         '#5f6b7c',
+            color:         '#8492a6',
             letterSpacing: '0.05em',
             marginBottom:  '10px',
           }}>
@@ -443,7 +443,7 @@ export function CountryBrief({ country, events, onClose }) {
           <div style={{
             fontFamily:   'Inter, sans-serif',
             fontSize:     '10px',
-            color:        '#5f6b7c',
+            color:        '#8492a6',
             marginBottom: '10px',
           }}>
             No recent reports
@@ -478,7 +478,7 @@ export function CountryBrief({ country, events, onClose }) {
             <div style={{
               fontFamily:      'Inter, sans-serif',
               fontSize:        '10px',
-              color:           '#abb3bf',
+              color:           '#c5cdd9',
               lineHeight:      1.4,
               overflow:        'hidden',
               textOverflow:    'ellipsis',
@@ -495,14 +495,14 @@ export function CountryBrief({ country, events, onClose }) {
               <span style={{
                 fontFamily: 'Inter, sans-serif',
                 fontSize:   '9px',
-                color:      '#738091',
+                color:      '#9caabb',
               }}>
                 {report.source}
               </span>
               <span style={{
                 fontFamily: 'JetBrains Mono, monospace',
                 fontSize:   '9px',
-                color:      '#5f6b7c',
+                color:      '#8492a6',
               }}>
                 {relativeDate(report.date)}
               </span>

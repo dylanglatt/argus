@@ -29,7 +29,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
   const impactColor =
     score >= 8 ? '#e76a6e' :  // Blueprint red4
     score >= 5 ? '#fbb360' :  // Blueprint orange5
-                 '#738091';   // Blueprint gray2
+                 '#9caabb';   // Blueprint gray2
 
   const tone      = event.avg_tone ?? 0;
   const toneColor = tone < -5 ? '#e76a6e' : tone < 0 ? '#ec9a3c' : '#32a467';
@@ -71,7 +71,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           <div style={{
             width:      '5px',
             height:     '5px',
-            background: eventType?.color || '#738091',
+            background: eventType?.color || '#9caabb',
             transform:  'rotate(45deg)',
             flexShrink: 0,
           }} />
@@ -81,7 +81,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
             fontWeight:    600,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color:         eventType?.color || '#738091',
+            color:         eventType?.color || '#9caabb',
           }}>
             {event.sub_event_type || event.event_type}
           </span>
@@ -91,7 +91,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           style={{
             background:   'transparent',
             border:       'none',
-            color:        '#738091',
+            color:        '#9caabb',
             cursor:       'pointer',
             fontSize:     '16px',
             lineHeight:   1,
@@ -101,7 +101,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
             borderRadius: '2px',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = '#f6f7f9')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#738091')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = '#9caabb')}
         >
           ×
         </button>
@@ -130,7 +130,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           <span style={{
             fontFamily:    'JetBrains Mono, monospace',
             fontSize:      '10px',
-            color:         '#5f6b7c',
+            color:         '#8492a6',
             letterSpacing: '0.04em',
           }}>
             {event.event_date}
@@ -171,7 +171,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               fontSize:      '8px',
               fontWeight:    600,
               letterSpacing: '0.05em',
-              color:         '#5f6b7c',
+              color:         '#8492a6',
               background:    '#252a31',
               border:        '1px solid #383e47',
               borderRadius:  '2px',
@@ -210,7 +210,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               <div style={{
                 fontFamily: 'JetBrains Mono, monospace',
                 fontSize:   '10px',
-                color:      '#abb3bf',
+                color:      '#c5cdd9',
                 lineHeight: 1.5,
               }}>
                 {event.firms_detections} thermal detection{event.firms_detections !== 1 ? 's' : ''} within 25km
@@ -224,7 +224,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
                 fontWeight: 600,
                 color:      '#ec9a3c',
               }}>
-                {event.firms_max_frp}<span style={{ fontSize: '9px', color: '#5f6b7c' }}> MW</span>
+                {event.firms_max_frp}<span style={{ fontSize: '9px', color: '#8492a6' }}> MW</span>
               </div>
             </div>
           </div>
@@ -254,7 +254,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               fontWeight:    600,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
-              color:         '#738091',
+              color:         '#9caabb',
               marginBottom:  '2px',
             }}>
               CONFLICT SEVERITY
@@ -266,7 +266,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               color:      impactColor,
               lineHeight: 1,
             }}>
-              {score}<span style={{ fontSize: '12px', color: '#5f6b7c' }}>/10</span>
+              {score}<span style={{ fontSize: '12px', color: '#8492a6' }}>/10</span>
             </div>
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
@@ -314,7 +314,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
                 <div style={{
                   fontFamily:    'Inter, sans-serif',
                   fontSize:      '9px',
-                  color:         '#5f6b7c',
+                  color:         '#8492a6',
                   marginTop:     '4px',
                   letterSpacing: '0.04em',
                 }}>
@@ -335,7 +335,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
                   minWidth:     '70px',
                 }}>
                   <div style={{ ...metaLabelStyle, marginBottom: '2px' }}>LOW</div>
-                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#abb3bf' }}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#c5cdd9' }}>
                     {(event.fatalities_low || 0).toLocaleString()}
                   </div>
                 </div>
@@ -346,7 +346,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
                   borderRadius: '2px',
                 }}>
                   <div style={{ ...metaLabelStyle, marginBottom: '2px' }}>HIGH</div>
-                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#abb3bf' }}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#c5cdd9' }}>
                     {(event.fatalities_high || 0).toLocaleString()}
                   </div>
                 </div>
@@ -379,7 +379,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
             <div style={{
               fontFamily:   'Inter, sans-serif',
               fontSize:     '11px',
-              color:        '#abb3bf',
+              color:        '#c5cdd9',
               lineHeight:   '1.6',
               marginBottom: '16px',
               padding:      '10px',
@@ -399,7 +399,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
             <div style={{
               fontFamily:    'JetBrains Mono, monospace',
               fontSize:      '10px',
-              color:         '#5f6b7c',
+              color:         '#8492a6',
               marginBottom:  '16px',
               letterSpacing: '0.03em',
             }}>
@@ -442,12 +442,12 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
                 cursor:       'pointer',
                 fontFamily:   'Inter, sans-serif',
                 fontSize:     '9px',
-                color:        '#5f6b7c',
+                color:        '#8492a6',
                 padding:      '0',
                 letterSpacing: '0.04em',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#abb3bf')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#5f6b7c')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#c5cdd9')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#8492a6')}
             >
               UNDO
             </button>
@@ -585,14 +585,14 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               fontWeight:    600,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
-              color:         '#5f6b7c',   // Blueprint gray1 — muted
+              color:         '#8492a6',   // Blueprint gray1 — muted
             }}>
               SOURCE UNAVAILABLE
             </span>
             <span style={{
               fontFamily:  'Inter, sans-serif',
               fontSize:    '8px',
-              color:       '#404854',
+              color:       '#6a7585',
               letterSpacing: '0.04em',
             }}>
               ROOT DOMAIN ONLY
@@ -610,7 +610,7 @@ const metaLabelStyle = {
   fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color:         '#738091',
+  color:         '#9caabb',
 };
 
 function SectionLabel({ children }) {
@@ -633,7 +633,7 @@ function MetaField({ label, value, mono, valueColor, tooltip }) {
       <div style={{
         fontFamily:   mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
         fontSize:     '11px',
-        color:        valueColor || '#abb3bf',
+        color:        valueColor || '#c5cdd9',
         fontWeight:   mono ? 500 : 400,
         overflow:     'hidden',
         textOverflow: 'ellipsis',
@@ -680,13 +680,13 @@ const TAG_COLORS = {
 const CONFIDENCE_COLORS = {
   high:   '#32a467',  // Blueprint green4
   medium: '#fbb360',  // Blueprint orange5
-  low:    '#738091',  // Blueprint gray2
+  low:    '#9caabb',  // Blueprint gray2
 };
 
 function AiClassificationPanel({ classification }) {
   const { score, breakdown, tags, confidence, reasoning } = classification;
   const confColor  = CONFIDENCE_COLORS[confidence] || CONFIDENCE_COLORS.medium;
-  const scoreColor = score >= 9 ? '#e76a6e' : score >= 7 ? '#fbb360' : '#738091';
+  const scoreColor = score >= 9 ? '#e76a6e' : score >= 7 ? '#fbb360' : '#9caabb';
 
   return (
     <div style={{ marginBottom: '16px' }}>
@@ -715,7 +715,7 @@ function AiClassificationPanel({ classification }) {
             lineHeight: 1,
           }}>
             {score != null ? score : '—'}
-            <span style={{ fontSize: '11px', color: '#5f6b7c' }}>/12</span>
+            <span style={{ fontSize: '11px', color: '#8492a6' }}>/12</span>
           </div>
         </div>
 
@@ -739,7 +739,7 @@ function AiClassificationPanel({ classification }) {
                     fontSize:      '8px',
                     fontWeight:    600,
                     letterSpacing: '0.06em',
-                    color:         '#5f6b7c',
+                    color:         '#8492a6',
                     minWidth:      '44px',
                   }}>
                     {label}
@@ -762,7 +762,7 @@ function AiClassificationPanel({ classification }) {
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace',
                     fontSize:   '8px',
-                    color:      '#5f6b7c',
+                    color:      '#8492a6',
                     minWidth:   '18px',
                     textAlign:  'right',
                   }}>
@@ -798,7 +798,7 @@ function AiClassificationPanel({ classification }) {
         <div style={{
           fontFamily:   'Inter, sans-serif',
           fontSize:     '11px',
-          color:        '#abb3bf',
+          color:        '#c5cdd9',
           lineHeight:   '1.6',
           marginBottom: '8px',
           padding:      '8px 10px',
@@ -815,7 +815,7 @@ function AiClassificationPanel({ classification }) {
       {tags && tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
           {tags.map((tag) => {
-            const color = TAG_COLORS[tag] || '#5f6b7c';
+            const color = TAG_COLORS[tag] || '#8492a6';
             return (
               <span
                 key={tag}

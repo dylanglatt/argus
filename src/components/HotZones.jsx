@@ -6,7 +6,7 @@ const LABEL_STYLE = {
   fontWeight:    600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color:         '#738091',    // Blueprint gray2
+  color:         '#9caabb',    // Blueprint gray2
 };
 
 /**
@@ -115,7 +115,7 @@ export function HotZones({ events, onSelectCountry }) {
             <span style={{
               fontFamily: 'JetBrains Mono, monospace',
               fontSize:   '9px',
-              color:      '#5f6b7c',
+              color:      '#8492a6',
             }}>
               {recentCount}
             </span>

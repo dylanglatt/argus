@@ -12,13 +12,16 @@ import { EVENT_TYPES, MAP_CONFIG } from '../utils/constants';
  * Auto-fit: on first event load, the map flies to the bounding box of all
  * loaded events, giving an operationally honest initial view.
  */
-export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBrief, showThermal, onConfirm, onDismiss }) {
+export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBrief, showThermal, onConfirm, onDismiss, fetchedAt }) {
   const mapRef          = useRef(null);
   const hasFitted       = useRef(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [popupCoords,   setPopupCoords]   = useState(null);
   const [firmsData,     setFirmsData]     = useState(null);
   const mapToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  // Data staleness: flag if fetchedAt is > 90 minutes old
+  const isStale = fetchedAt && (Date.now() - fetchedAt) > 90 * 60 * 1000;
 
   // Fetch FIRMS thermal anomalies when layer is enabled
   useEffect(() => {
@@ -66,20 +69,26 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
       .map((event) => ({
         type: 'Feature',
         properties: {
-          id:           event.event_id_cnty,
-          date:         event.event_date,
-          type:         event.event_type,
-          sub_type:     event.sub_event_type,
-          location:     event.location,
-          actor1:       event.actor1,
-          actor2:       event.actor2,
-          impact_score: event.impact_score  ?? 0,
-          goldstein:    event.goldstein_scale ?? 0,
-          num_mentions: event.num_mentions  ?? 1,
-          num_sources:  event.num_sources   ?? 1,
-          avg_tone:     event.avg_tone      ?? 0,
-          source_url:   event.source_url    || '',
-          notes:        event.notes         || '',
+          id:               event.event_id_cnty,
+          date:             event.event_date,
+          type:             event.event_type,
+          sub_type:         event.sub_event_type,
+          location:         event.location,
+          actor1:           event.actor1,
+          actor2:           event.actor2,
+          impact_score:     event.impact_score    ?? 0,
+          goldstein:        event.goldstein_scale ?? 0,
+          num_mentions:     event.num_mentions    ?? 1,
+          num_sources:      event.num_sources     ?? 1,
+          avg_tone:         event.avg_tone        ?? 0,
+          source_url:       event.source_url      || '',
+          notes:            event.notes           || '',
+          source:           event.source          || 'gdelt',
+          fatalities_best:  event.fatalities_best ?? 0,
+          // size_weight: fatalities for UCDP, num_mentions for GDELT (both log-comparable)
+          size_weight: event.source === 'ucdp'
+            ? Math.max((event.fatalities_best || 0), 1)
+            : (event.num_mentions || 1),
         },
         geometry: {
           type:        'Point',
@@ -88,13 +97,16 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
       })),
   }), [events]);
 
-  // Radius: interpolate 4–14px based on num_mentions (media coverage weight)
+  // Radius: interpolate 4–16px based on size_weight.
+  // UCDP events use fatalities (1–1000+); GDELT events use num_mentions.
+  // Both are normalised to size_weight so the same interpolation applies.
   const radiusExpr = [
-    'interpolate', ['linear'], ['get', 'num_mentions'],
-    1,   4,
-    30,  7,
-    100, 11,
-    300, 14,
+    'interpolate', ['linear'], ['get', 'size_weight'],
+    1,    4,
+    30,   7,
+    100,  11,
+    500,  14,
+    1000, 16,
   ];
 
   // Color: match event_type key
@@ -448,10 +460,10 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           </span>
         </div>
 
-        {/* GDELT badge */}
+        {/* Data source + staleness badge */}
         <div style={{
           background:     'rgba(17, 20, 24, 0.92)',
-          border:         '1px solid #383e47',
+          border:         `1px solid ${isStale ? '#ec9a3c40' : '#383e47'}`,
           padding:        '3px 10px',
           backdropFilter: 'blur(6px)',
           display:        'flex',
@@ -459,21 +471,21 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           gap:            '6px',
         }}>
           <div style={{
-            width:      '5px',
-            height:     '5px',
+            width:        '5px',
+            height:       '5px',
             borderRadius: '50%',
-            background: '#32a467',
-            flexShrink: 0,
-            boxShadow:  '0 0 5px #32a467',
+            background:   isStale ? '#ec9a3c' : '#32a467',
+            flexShrink:   0,
+            boxShadow:    `0 0 5px ${isStale ? '#ec9a3c' : '#32a467'}`,
           }} />
           <span style={{
             fontFamily:    'Inter, sans-serif',
             fontSize:      '9px',
             fontWeight:    500,
-            color:         '#738091',
+            color:         isStale ? '#ec9a3c' : '#738091',
             letterSpacing: '0.05em',
           }}>
-            GDELT · 15 MIN REFRESH
+            {isStale ? 'DATA STALE · REFRESH PENDING' : 'GDELT + UCDP · HOURLY REFRESH'}
           </span>
         </div>
       </div>

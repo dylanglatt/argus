@@ -21,3 +21,4 @@ jobs:
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          UCDP_API_TOKEN: ${{ secrets.UCDP_API_TOKEN }}

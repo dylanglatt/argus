@@ -44,6 +44,7 @@ export default function App() {
   const [filters, setFilters] = useState({
     eventTypes:  [],
     countries:   [],
+    sources:     [],
     dateRange:   { start: null, end: null },
     impactMin:   0,
     searchQuery: '',
@@ -200,6 +201,7 @@ export default function App() {
               showThermal={showThermal}
               onConfirm={confirmEvent}
               onDismiss={(id) => dismissEvent(id)}
+              fetchedAt={fetchedAt}
             />
           </div>
 

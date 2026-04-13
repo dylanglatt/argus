@@ -107,7 +107,7 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
       {/* Column headers — Blueprint table head style */}
       <div style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 28px 1fr 1fr 38px 26px 22px',
+        gridTemplateColumns: '4px 90px 22px 36px 1fr 1fr 52px 38px 26px 22px',
         height:              '24px',
         alignItems:          'center',
         borderBottom:        '1px solid #383e47',
@@ -120,6 +120,7 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
         <span />
         <span style={COL_LABEL}>LOCATION</span>
         <span style={COL_LABEL}>ACTOR</span>
+        <span style={{ ...COL_LABEL, textAlign: 'right' }}>KIA</span>
         <span style={{ ...COL_LABEL, textAlign: 'right' }}>SCORE</span>
         <span />
         <span />
@@ -158,7 +159,9 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
 
 function EventRow({ event, onClick, isSelected, onDismiss }) {
   const [hovered, setHovered] = React.useState(false);
-  const eventType = EVENT_TYPES[event.event_type];
+  const eventType  = EVENT_TYPES[event.event_type];
+  const isUCDP     = event.source === 'ucdp';
+  const fatalities = event.fatalities_best ?? null;
 
   const score        = event.impact_score ?? 0;
   const isHighImpact = score >= 8;
@@ -190,7 +193,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 28px 1fr 1fr 38px 26px 22px',
+        gridTemplateColumns: '4px 90px 22px 36px 1fr 1fr 52px 38px 26px 22px',
         minHeight:           '34px',
         alignItems:          'center',
         borderBottom:        `1px solid #383e4766`,  // Blueprint dark-gray4 at 40%
@@ -231,9 +234,24 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         }} />
       </span>
 
-      {/* SAT corroboration badge */}
+      {/* Source / corroboration badge */}
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {event.satellite_corroborated && (
+        {isUCDP ? (
+          <span style={{
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '7px',
+            fontWeight:    700,
+            letterSpacing: '0.04em',
+            color:         '#4c90f0',
+            background:    '#4c90f01a',
+            border:        '1px solid #4c90f030',
+            borderRadius:  '2px',
+            padding:       '1px 3px',
+            lineHeight:    1,
+          }}>
+            UCDP
+          </span>
+        ) : event.satellite_corroborated ? (
           <span style={{
             fontFamily:    'Inter, sans-serif',
             fontSize:      '7px',
@@ -248,7 +266,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
           }}>
             SAT
           </span>
-        )}
+        ) : null}
       </span>
 
       {/* Location — primary text */}
@@ -279,6 +297,19 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         {event.actor1 !== 'Unknown'
           ? event.actor1
           : (event.actor2 !== 'Unknown' ? event.actor2 : event.country)}
+      </span>
+
+      {/* KIA — fatalities from UCDP, blank for GDELT */}
+      <span style={{
+        fontFamily:    'JetBrains Mono, monospace',
+        fontSize:      '10px',
+        fontWeight:    600,
+        color:         fatalities > 0 ? '#e76a6e' : '#383e47',
+        padding:       '0 4px',
+        textAlign:     'right',
+        letterSpacing: '0.02em',
+      }}>
+        {fatalities != null && fatalities > 0 ? fatalities.toLocaleString() : '—'}
       </span>
 
       {/* Impact score */}

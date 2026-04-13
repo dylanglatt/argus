@@ -31,8 +31,36 @@ function relativeDate(dateStr) {
 }
 
 export function CountryBrief({ country, events, onClose }) {
-  const [reports, setReports]       = useState(null);
+  const [reports,        setReports]        = useState(null);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [sitrep,         setSitrep]         = useState(null);   // AI-generated brief
+  const [sitrepLoading,  setSitrepLoading]  = useState(false);
+  const [sitrepMeta,     setSitrepMeta]     = useState(null);   // { gdelt_events, ucdp_events }
+
+  // Fetch AI-generated situation report when country changes
+  useEffect(() => {
+    if (!country) return;
+    let cancelled = false;
+    setSitrep(null);
+    setSitrepLoading(true);
+    (async () => {
+      try {
+        const res  = await fetch(`/api/brief/${encodeURIComponent(country)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!cancelled) {
+          setSitrep(json.sitrep || null);
+          setSitrepMeta({ gdelt: json.gdelt_events || 0, ucdp: json.ucdp_events || 0 });
+        }
+      } catch (err) {
+        console.warn('[CountryBrief] Sitrep fetch failed:', err.message);
+        if (!cancelled) setSitrep(null);
+      } finally {
+        if (!cancelled) setSitrepLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [country]);
 
   // Fetch ReliefWeb reports when country changes
   useEffect(() => {
@@ -198,6 +226,119 @@ export function CountryBrief({ country, events, onClose }) {
             ← BACK
           </button>
         </div>
+
+        {/* AI-generated SITREP */}
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'space-between',
+            marginBottom:   '8px',
+          }}>
+            <div style={{ ...LABEL_STYLE }}>SITUATION REPORT</div>
+            {sitrepMeta && (
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {sitrepMeta.ucdp > 0 && (
+                  <span style={{
+                    fontFamily:    'Inter, sans-serif',
+                    fontSize:      '8px',
+                    fontWeight:    700,
+                    color:         '#4c90f0',
+                    background:    '#4c90f01a',
+                    border:        '1px solid #4c90f030',
+                    borderRadius:  '2px',
+                    padding:       '1px 5px',
+                    letterSpacing: '0.04em',
+                  }}>
+                    UCDP ·{sitrepMeta.ucdp}
+                  </span>
+                )}
+                {sitrepMeta.gdelt > 0 && (
+                  <span style={{
+                    fontFamily:    'Inter, sans-serif',
+                    fontSize:      '8px',
+                    fontWeight:    600,
+                    color:         '#738091',
+                    background:    '#252a31',
+                    border:        '1px solid #383e47',
+                    borderRadius:  '2px',
+                    padding:       '1px 5px',
+                    letterSpacing: '0.04em',
+                  }}>
+                    GDELT ·{sitrepMeta.gdelt}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {sitrepLoading && (
+            <div style={{
+              padding:      '10px 12px',
+              background:   '#252a31',
+              border:       '1px solid #383e47',
+              borderLeft:   '3px solid #4c90f0',
+              borderRadius: '2px',
+            }}>
+              <div style={{
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '9px',
+                color:         '#4c90f0',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                fontWeight:    600,
+              }}>
+                GENERATING SITREP...
+              </div>
+            </div>
+          )}
+
+          {!sitrepLoading && sitrep && (
+            <div style={{
+              padding:      '10px 12px',
+              background:   '#252a31',
+              border:       '1px solid #383e47',
+              borderLeft:   '3px solid #4c90f0',
+              borderRadius: '2px',
+            }}>
+              <div style={{
+                fontFamily:  'Inter, sans-serif',
+                fontSize:    '10px',
+                color:       '#abb3bf',
+                lineHeight:  '1.65',
+                whiteSpace:  'pre-wrap',
+              }}>
+                {sitrep}
+              </div>
+              <div style={{
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '8px',
+                color:         '#404854',
+                marginTop:     '8px',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}>
+                AI-GENERATED · HAIKU · NOT FOR OPERATIONAL USE
+              </div>
+            </div>
+          )}
+
+          {!sitrepLoading && !sitrep && (
+            <div style={{
+              padding:      '10px 12px',
+              background:   '#1c2127',
+              border:       '1px solid #2f343c',
+              borderRadius: '2px',
+              fontFamily:   'Inter, sans-serif',
+              fontSize:     '10px',
+              color:        '#5f6b7c',
+            }}>
+              No data available for this country.
+            </div>
+          )}
+        </div>
+
+        <div style={{ borderTop: '1px solid #383e47', marginBottom: '14px' }} />
 
         {/* Key metrics — Blueprint card grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '14px' }}>

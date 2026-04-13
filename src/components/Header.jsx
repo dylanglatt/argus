@@ -170,7 +170,12 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
           <StatCell label="EVENTS"       value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9" />
           <Divider />
-          <StatCell label="SOURCES"      value={(stats?.totalSources ?? 0).toLocaleString()} valueColor="#32a467" />
+          <StatCell
+            label="FATALITIES"
+            value={stats?.totalFatalities > 0 ? (stats.totalFatalities).toLocaleString() : '—'}
+            valueColor="#e76a6e"
+            tooltip="Confirmed fatality estimates from UCDP validated data. GDELT events excluded (no fatality data)."
+          />
           <Divider />
           <StatCell label="COUNTRIES"    value={stats?.countriesAffected ?? 0}               valueColor="#f6f7f9" />
           <Divider />

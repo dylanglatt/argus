@@ -71,6 +71,14 @@ export function FilterPanel({
     onFilterChange({ ...filters, eventTypes: next });
   };
 
+  const toggleSource = (src) => {
+    const current = filters.sources || [];
+    const next = current.includes(src)
+      ? current.filter((s) => s !== src)
+      : [...current, src];
+    onFilterChange({ ...filters, sources: next });
+  };
+
   const toggleCountry = (country) => {
     const next = filters.countries.includes(country)
       ? filters.countries.filter((c) => c !== country)
@@ -80,7 +88,7 @@ export function FilterPanel({
 
   const handleReset = () => {
     onFilterChange({
-      eventTypes: [], countries: [],
+      eventTypes: [], countries: [], sources: [],
       dateRange: { start: null, end: null },
       impactMin: 0, searchQuery: '',
     });
@@ -91,10 +99,11 @@ export function FilterPanel({
     c.toLowerCase().includes(countrySearch.toLowerCase())
   );
 
-  const impactMin        = filters.impactMin ?? 0;
-  const activeTypeCount  = filters.eventTypes.length;
+  const impactMin         = filters.impactMin ?? 0;
+  const activeTypeCount   = filters.eventTypes.length;
   const activeRegionCount = filters.countries.length;
-  const hasActiveFilters = activeTypeCount > 0 || activeRegionCount > 0 || filters.searchQuery || impactMin > 0;
+  const activeSources     = filters.sources || [];
+  const hasActiveFilters  = activeTypeCount > 0 || activeRegionCount > 0 || filters.searchQuery || impactMin > 0 || activeSources.length > 0;
 
   return (
     <div style={{
@@ -219,6 +228,75 @@ export function FilterPanel({
                   }}>
                     {type.label}
                   </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ borderTop: '1px solid #383e47', marginBottom: '20px' }} />
+
+        {/* Data source filter — GDELT vs UCDP */}
+        <div style={SECTION_GAP}>
+          <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>
+            DATA SOURCE
+            {activeSources.length > 0 && (
+              <span style={{ color: '#4c90f0', marginLeft: '6px' }}>({activeSources.length})</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            {[
+              { key: 'gdelt', label: 'GDELT 2.0', desc: 'Real-time NLP signals', color: '#32a467' },
+              { key: 'ucdp',  label: 'UCDP GED',  desc: 'Validated research data', color: '#4c90f0' },
+            ].map(({ key, label, desc, color }) => {
+              const isSelected = activeSources.includes(key);
+              return (
+                <div
+                  key={key}
+                  onClick={() => toggleSource(key)}
+                  style={{
+                    display:      'flex',
+                    alignItems:   'center',
+                    height:       '36px',
+                    padding:      '0 8px',
+                    cursor:       'pointer',
+                    background:   isSelected ? `${color}10` : '#252a31',
+                    border:       `1px solid ${isSelected ? color + '40' : '#383e47'}`,
+                    borderLeft:   `3px solid ${isSelected ? color : 'transparent'}`,
+                    borderRadius: '2px',
+                    transition:   'all 0.12s',
+                  }}
+                  onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.background = '#2f343c'; }}}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? `${color}10` : '#252a31'; }}
+                >
+                  <div style={{
+                    width:       '5px',
+                    height:      '5px',
+                    borderRadius:'50%',
+                    background:  color,
+                    flexShrink:  0,
+                    marginRight: '8px',
+                    boxShadow:   isSelected ? `0 0 4px ${color}` : 'none',
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize:   '11px',
+                      fontWeight: isSelected ? 600 : 400,
+                      color:      isSelected ? '#f6f7f9' : '#abb3bf',
+                      lineHeight: 1.2,
+                    }}>
+                      {label}
+                    </div>
+                    <div style={{
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize:   '9px',
+                      color:      '#5f6b7c',
+                      marginTop:  '1px',
+                    }}>
+                      {desc}
+                    </div>
+                  </div>
                 </div>
               );
             })}

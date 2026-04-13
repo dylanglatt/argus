@@ -21,8 +21,10 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
 
   if (!event) return null;
 
-  const eventType = EVENT_TYPES[event.event_type];
-  const score     = event.impact_score ?? 0;
+  const eventType  = EVENT_TYPES[event.event_type];
+  const score      = event.impact_score ?? 0;
+  const isUCDP     = event.source === 'ucdp';
+  const hasFatalities = isUCDP && (event.fatalities_best > 0);
 
   const impactColor =
     score >= 8 ? '#e76a6e' :  // Blueprint red4
@@ -120,18 +122,68 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           {event.location}
         </div>
         <div style={{
-          fontFamily:    'JetBrains Mono, monospace',
-          fontSize:      '10px',
-          color:         '#5f6b7c',
+          display:       'flex',
+          alignItems:    'center',
+          justifyContent:'space-between',
           marginBottom:  '16px',
-          letterSpacing: '0.04em',
         }}>
-          {event.event_date}
-          {event.country && event.country !== event.location ? ` · ${event.country}` : ''}
+          <span style={{
+            fontFamily:    'JetBrains Mono, monospace',
+            fontSize:      '10px',
+            color:         '#5f6b7c',
+            letterSpacing: '0.04em',
+          }}>
+            {event.event_date}
+            {event.country && event.country !== event.location ? ` · ${event.country}` : ''}
+          </span>
+          {/* Source provenance badge */}
+          {isUCDP ? (
+            <span style={{
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '8px',
+              fontWeight:    700,
+              letterSpacing: '0.06em',
+              color:         '#4c90f0',
+              background:    '#4c90f01a',
+              border:        '1px solid #4c90f040',
+              borderRadius:  '2px',
+              padding:       '2px 6px',
+            }}>
+              UCDP VALIDATED
+            </span>
+          ) : event.satellite_corroborated ? (
+            <span style={{
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '8px',
+              fontWeight:    700,
+              letterSpacing: '0.06em',
+              color:         '#32a467',
+              background:    '#32a4671a',
+              border:        '1px solid #32a46740',
+              borderRadius:  '2px',
+              padding:       '2px 6px',
+            }}>
+              SAT CORROBORATED
+            </span>
+          ) : (
+            <span style={{
+              fontFamily:    'Inter, sans-serif',
+              fontSize:      '8px',
+              fontWeight:    600,
+              letterSpacing: '0.05em',
+              color:         '#5f6b7c',
+              background:    '#252a31',
+              border:        '1px solid #383e47',
+              borderRadius:  '2px',
+              padding:       '2px 6px',
+            }}>
+              GDELT SIGNAL
+            </span>
+          )}
         </div>
 
-        {/* SAT corroboration callout — shown when FIRMS data confirms event */}
-        {event.satellite_corroborated && (
+        {/* SAT corroboration callout — shown for GDELT events corroborated by FIRMS */}
+        {!isUCDP && event.satellite_corroborated && (
           <div style={{
             display:      'flex',
             alignItems:   'center',
@@ -224,6 +276,79 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
             </div>
           </div>
         </div>
+
+        {/* CASUALTIES — UCDP events only */}
+        {hasFatalities && (
+          <>
+            <SectionLabel>CASUALTIES</SectionLabel>
+            <div style={{
+              display:      'flex',
+              alignItems:   'stretch',
+              gap:          '8px',
+              marginBottom: '16px',
+            }}>
+              {/* Best estimate — prominent */}
+              <div style={{
+                flex:         1,
+                padding:      '10px 12px',
+                background:   '#e76a6e0d',
+                border:       '1px solid #e76a6e25',
+                borderLeft:   '3px solid #e76a6e',
+                borderRadius: '2px',
+              }}>
+                <div style={{ ...metaLabelStyle, marginBottom: '4px', color: '#e76a6e' }}>CONFIRMED KIA</div>
+                <div style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize:   '24px',
+                  fontWeight: 700,
+                  color:      '#e76a6e',
+                  lineHeight: 1,
+                }}>
+                  {(event.fatalities_best || 0).toLocaleString()}
+                </div>
+                <div style={{
+                  fontFamily:    'Inter, sans-serif',
+                  fontSize:      '9px',
+                  color:         '#5f6b7c',
+                  marginTop:     '4px',
+                  letterSpacing: '0.04em',
+                }}>
+                  UCDP BEST ESTIMATE
+                </div>
+              </div>
+              {/* Range */}
+              <div style={{
+                display:        'flex',
+                flexDirection:  'column',
+                gap:            '6px',
+              }}>
+                <div style={{
+                  padding:      '6px 10px',
+                  background:   '#252a31',
+                  border:       '1px solid #383e47',
+                  borderRadius: '2px',
+                  minWidth:     '70px',
+                }}>
+                  <div style={{ ...metaLabelStyle, marginBottom: '2px' }}>LOW</div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#abb3bf' }}>
+                    {(event.fatalities_low || 0).toLocaleString()}
+                  </div>
+                </div>
+                <div style={{
+                  padding:      '6px 10px',
+                  background:   '#252a31',
+                  border:       '1px solid #383e47',
+                  borderRadius: '2px',
+                }}>
+                  <div style={{ ...metaLabelStyle, marginBottom: '2px' }}>HIGH</div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#abb3bf' }}>
+                    {(event.fatalities_high || 0).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Actors */}
         <SectionLabel>ACTORS</SectionLabel>

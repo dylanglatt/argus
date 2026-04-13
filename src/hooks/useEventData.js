@@ -13,6 +13,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
  *   dateRange   - { start: 'YYYY-MM-DD' | null, end: 'YYYY-MM-DD' | null }
  *   impactMin   - minimum impact_score (0–10, inverted Goldstein)
  *   searchQuery - free-text search against location, actors, notes
+ *   sources     - array of source strings ('gdelt' | 'ucdp'); empty = all
  */
 export function useEventData(filters = {}) {
   const [events, setEvents]   = useState([]);
@@ -30,6 +31,7 @@ export function useEventData(filters = {}) {
     impactMin   = 0,
     searchQuery = '',
     timeWindow  = 'ALL', // 'ALL' | '24H' | '48H' | '72H'
+    sources     = [],    // [] = all; ['gdelt'] | ['ucdp'] = filtered
   } = filters;
 
   // Fetch on mount
@@ -133,6 +135,11 @@ export function useEventData(filters = {}) {
         return false;
       }
 
+      // Source filter (gdelt / ucdp)
+      if (sources.length > 0 && !sources.includes(event.source || 'gdelt')) {
+        return false;
+      }
+
       // Free-text search: location, actors, notes
       if (searchQuery.length > 0) {
         const q = searchQuery.toLowerCase();
@@ -155,6 +162,9 @@ export function useEventData(filters = {}) {
 
     const totalSources = filteredEvents.reduce((sum, e) => sum + (e.num_sources || 0), 0);
     const totalMentions = filteredEvents.reduce((sum, e) => sum + (e.num_mentions || 0), 0);
+
+    // Total fatalities — sum of UCDP best estimates (GDELT events have no fatality data)
+    const totalFatalities = filteredEvents.reduce((sum, e) => sum + (e.fatalities_best || 0), 0);
 
     // Average Goldstein scale across filtered events (negative = more conflict)
     const avgGoldstein =
@@ -195,6 +205,7 @@ export function useEventData(filters = {}) {
 
     return {
       totalEvents:      filteredEvents.length,
+      totalFatalities,
       totalSources,
       totalMentions,
       countriesAffected: countriesSet.size,

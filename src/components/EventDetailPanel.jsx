@@ -398,7 +398,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               marginBottom:  '16px',
               letterSpacing: '0.03em',
             }}>
-              {Number(event.latitude).toFixed(4)}° N &nbsp; {Number(event.longitude).toFixed(4)}° E
+              {Math.abs(Number(event.latitude)).toFixed(4)}°&thinsp;{Number(event.latitude) >= 0 ? 'N' : 'S'}&nbsp;&nbsp;{Math.abs(Number(event.longitude)).toFixed(4)}°&thinsp;{Number(event.longitude) >= 0 ? 'E' : 'W'}
             </div>
           </>
         )}

@@ -9,5 +9,11 @@
     "api/firms/corroborate-batch.js": {
       "maxDuration": 15
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api|assets|favicon\\.svg|og-preview\\.png).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

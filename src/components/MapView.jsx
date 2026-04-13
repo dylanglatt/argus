@@ -18,7 +18,8 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [popupCoords,   setPopupCoords]   = useState(null);
   const [firmsData,     setFirmsData]     = useState(null);
-  const mapToken = import.meta.env.VITE_MAPBOX_TOKEN;
+  const mapToken  = import.meta.env.VITE_MAPBOX_TOKEN;
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // Data staleness: flag if fetchedAt is > 90 minutes old
   const isStale = fetchedAt && (Date.now() - fetchedAt) > 90 * 60 * 1000;
@@ -199,6 +200,43 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
 
   return (
     <div style={{ flex: 1, position: 'relative', overflow: 'hidden', borderBottom: '1px solid #2f343c' }}>
+
+      {/* Loading skeleton — shown until Mapbox tiles are fully rendered */}
+      {!mapLoaded && (
+        <div style={{
+          position:       'absolute',
+          inset:          0,
+          zIndex:         200,
+          background:     '#111418',
+          display:        'flex',
+          flexDirection:  'column',
+          alignItems:     'center',
+          justifyContent: 'center',
+          gap:            '10px',
+          pointerEvents:  'none',
+        }}>
+          {/* Animated reticle spinner */}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="32" height="32"
+            style={{ animation: 'argus-spin 3s linear infinite', opacity: 0.4 }}>
+            <style>{`@keyframes argus-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <line x1="100" y1="0"   x2="100" y2="200" stroke="#5f6b7c" strokeWidth="3"/>
+            <line x1="0"   y1="100" x2="200" y2="100" stroke="#5f6b7c" strokeWidth="3"/>
+            <circle cx="100" cy="100" r="82" fill="none" stroke="#5f6b7c" strokeWidth="3.5"/>
+            <circle cx="100" cy="100" r="28" fill="none" stroke="#5f6b7c" strokeWidth="3.5"/>
+          </svg>
+          <span style={{
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '9px',
+            fontWeight:    600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
+            color:         '#404854',
+          }}>
+            LOADING MAP
+          </span>
+        </div>
+      )}
+
       <Map
         ref={mapRef}
         initialViewState={{
@@ -211,6 +249,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
         mapboxAccessToken={mapToken}
         interactiveLayerIds={['conflict-clusters', 'conflict-points']}
         onClick={handleMapClick}
+        onLoad={() => setMapLoaded(true)}
         cursor="crosshair"
         attributionControl={false}
       >

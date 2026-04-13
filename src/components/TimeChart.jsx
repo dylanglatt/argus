@@ -232,8 +232,8 @@ export function TimeChart({ events }) {
         </div>
       )}
 
-      {/* Chart */}
-      <div style={{ flex: 1, overflow: 'hidden', padding: '6px 0 0 0' }}>
+      {/* Chart — minHeight: 0 prevents Recharts from receiving a -1 height in flex containers */}
+      <div style={{ flex: 1, overflow: 'hidden', padding: '6px 0 0 0', minHeight: 0 }}>
         {isEmpty ? (
           <div style={{
             display:        'flex',

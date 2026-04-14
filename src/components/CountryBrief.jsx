@@ -347,7 +347,7 @@ export function CountryBrief({ country, events, onClose }) {
             label="AVG GOLDSTEIN"
             value={`${brief.avgGoldstein > 0 ? '+' : ''}${brief.avgGoldstein}`}
             mono valueColor={goldsteinColor}
-            tooltip="Goldstein Scale avg. Negative = conflict pressure."
+            tooltip="Overall conflict mood for this country. Lower numbers mean more tension."
           />
           <Metric label="TREND" value={`${trendArrow} ${trendLabel}`} valueColor={trendColor} small />
           <Metric label="TOP ACTOR" value={brief.topActors[0] || 'Unknown'} small />

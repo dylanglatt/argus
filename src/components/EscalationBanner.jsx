@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { InfoHint } from './InfoHint';
 
 /**
  * EscalationBanner
@@ -74,6 +75,11 @@ export function EscalationBanner({ events, onSelectCountry }) {
         }}>
           ESCALATION ALERT
         </span>
+        <InfoHint
+          text="This appears when conflict in a country is rising fast compared to yesterday. Click a country name to get an AI-written summary."
+          position="below"
+          width={220}
+        />
       </div>
 
       <div style={{ width: '1px', height: '14px', background: '#e76a6e30', flexShrink: 0 }} />

@@ -368,7 +368,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           <MetaField label="MENTIONS"  value={(event.num_mentions ?? 0).toLocaleString()} mono />
           <MetaField label="SOURCES"   value={(event.num_sources ?? 0).toLocaleString()}  mono />
           <MetaField label="AVG TONE"  value={toneStr} mono valueColor={toneColor}
-            tooltip="Media tone toward the event. Negative = hostile/conflict framing." />
+            tooltip="How news sources are framing this event. Negative numbers mean more hostile coverage." />
           <MetaField label="SUB-EVENT" value={event.sub_event_type || '—'} />
         </div>
 

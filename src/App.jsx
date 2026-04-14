@@ -7,6 +7,8 @@ import { EventFeed } from './components/EventFeed';
 import { TimeChart } from './components/TimeChart';
 import { EventDetailPanel } from './components/EventDetailPanel';
 import { EscalationBanner } from './components/EscalationBanner';
+import { MissionBrief, shouldShowMissionBrief } from './components/MissionBrief';
+import { InfoHint } from './components/InfoHint';
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
@@ -57,6 +59,7 @@ export default function App() {
   const [showThermal,        setShowThermal]        = useState(false);
   const [showMobileFilters,  setShowMobileFilters]  = useState(false);
   const [showMobileFeed,     setShowMobileFeed]     = useState(false);
+  const [showBrief,          setShowBrief]          = useState(() => shouldShowMissionBrief());
 
   const {
     events, filteredEvents, availableCountries,
@@ -81,6 +84,9 @@ export default function App() {
       background:    '#111418',
       overflow:      'hidden',
     }}>
+      {/* Mission Brief — post-boot orientation overlay */}
+      {showBrief && <MissionBrief onDismiss={() => setShowBrief(false)} />}
+
       {/* Header */}
       <Header
         stats={stats}
@@ -376,8 +382,15 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
         letterSpacing: '0.08em',
         color:         '#8492a6',   // Blueprint gray1
         marginRight:   '8px',
+        display:       'flex',
+        alignItems:    'center',
       }}>
         WINDOW
+        <InfoHint
+          text="How far back to look. Pick 24H to see just the last day, or ALL to see everything."
+          position="below"
+          width={200}
+        />
       </span>
 
       {TIME_WINDOWS.map((tw) => {
@@ -473,6 +486,11 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
           transition:   'all 0.15s',
         }} />
         SAT
+        <InfoHint
+          text="Show satellite heat data. Highlights fires and explosions detected from space — useful for confirming ground reports."
+          position="below"
+          width={210}
+        />
       </button>
 
       <span style={{

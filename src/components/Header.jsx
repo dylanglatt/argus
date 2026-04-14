@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { InfoHint } from './InfoHint';
 
 /**
  * Header — 50px fixed bar (Blueprint navbar height).
@@ -301,24 +302,26 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
           <StatCell label="COUNTRIES" value={stats?.countriesAffected ?? 0}              valueColor="#f6f7f9" />
           <Divider />
           <StatCell label="TONE"      value={toneStr} valueColor={toneColor} mono
-            tooltip="Goldstein Scale average. Negative = conflict pressure." />
+            tooltip="Overall conflict mood. Lower numbers mean more tension." />
         </div>
       ) : (
         /* Desktop: full stats row */
         <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-          <StatCell label="EVENTS"       value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9" />
+          <StatCell label="EVENTS"       value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9"
+            tooltip="Total conflict events matching your current filters."
+          />
           <Divider />
           <StatCell
             label="KIA (UCDP)"
             value={stats?.totalFatalities > 0 ? (stats.totalFatalities).toLocaleString() : 'N/A'}
             valueColor={stats?.totalFatalities > 0 ? '#e76a6e' : '#6a7585'}
-            tooltip="Confirmed fatality estimates from UCDP validated events only. Shows N/A when no UCDP events are in the current filter window."
+            tooltip="Estimated fatalities from verified sources. Shows N/A when no verified data is available for your filters."
           />
           <Divider />
           <StatCell label="COUNTRIES"    value={stats?.countriesAffected ?? 0}               valueColor="#f6f7f9" />
           <Divider />
           <StatCell label="AVG TONE"     value={toneStr}  valueColor={toneColor} mono
-            tooltip="Goldstein Scale average. Negative = conflict pressure." />
+            tooltip="Overall conflict mood. Lower numbers mean more tension." />
           <Divider />
           <StatCell
             label="TREND"
@@ -332,7 +335,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
               stats?.trend === 'DE-ESCALATING' ? '#32a467' :
                                                  '#fbb360'
             }
-            tooltip="Conflict trend: compares Goldstein avg of recent vs prior events."
+            tooltip="Is conflict getting worse or better? Compares recent events to earlier ones."
           />
           <Divider />
           <StatCell label="LAST REFRESH" value={refreshAge} valueColor="#8492a6" mono />
@@ -347,7 +350,6 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
 function StatCell({ label, value, valueColor, mono, tooltip }) {
   return (
     <div
-      title={tooltip}
       style={{ padding: '0 14px', textAlign: 'right', cursor: tooltip ? 'help' : 'default' }}
     >
       <div style={{
@@ -358,8 +360,13 @@ function StatCell({ label, value, valueColor, mono, tooltip }) {
         letterSpacing: '0.07em',
         color:         '#9caabb',   // Blueprint gray2
         marginBottom:  '2px',
+        display:       'flex',
+        alignItems:    'center',
+        justifyContent:'flex-end',
+        gap:           '0',
       }}>
         {label}
+        {tooltip && <InfoHint text={tooltip} position="below" width={200} />}
       </div>
       <div style={{
         fontFamily: mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',

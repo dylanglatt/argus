@@ -524,7 +524,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             color:         isStale ? '#ec9a3c' : '#9caabb',
             letterSpacing: '0.05em',
           }}>
-            {isStale ? 'DATA STALE · REFRESH PENDING' : 'GDELT + UCDP · HOURLY REFRESH'}
+            {isStale ? 'DATA STALE · REFRESH PENDING' : 'GDELT + UCDP · 15-MIN REFRESH'}
           </span>
         </div>
       </div>

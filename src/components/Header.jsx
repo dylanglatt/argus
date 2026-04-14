@@ -12,7 +12,7 @@ import { InfoHint } from './InfoHint';
  * Left:  ARGUS wordmark + live indicator + map focus toggle
  * Right: live stats (events, sources, countries, Goldstein, trend, refresh, Zulu)
  */
-export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile }) {
+export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGuide, isMobile }) {
   const [zuluTime,   setZuluTime]   = useState('');
   const [refreshAge, setRefreshAge] = useState('—');
   const [pulse,      setPulse]      = useState(true);
@@ -168,6 +168,36 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
           {mapFocus ? '⊠ MAP FOCUS' : '⊡ MAP FOCUS'}
         </button>
 
+        {/* Guide button — solid blue, primary help action */}
+        <button
+          onClick={onShowGuide}
+          title="Open orientation guide"
+          style={{
+            background:    '#215db0',
+            border:        '1px solid #4c90f060',
+            borderRadius:  '2px',
+            padding:       '3px 10px',
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '9px',
+            fontWeight:    700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color:         '#f6f7f9',
+            cursor:        'pointer',
+            transition:    'all 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background  = '#2b6ec2';
+            e.currentTarget.style.borderColor = '#4c90f0';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background  = '#215db0';
+            e.currentTarget.style.borderColor = '#4c90f060';
+          }}
+        >
+          GUIDE
+        </button>
+
         {/* About popover anchor */}
         <div ref={aboutRef} style={{ position: 'relative' }}>
           <button
@@ -175,25 +205,26 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, isMobile 
             title="About Argus"
             style={{
               background:    showAbout ? '#252a31' : 'transparent',
-              border:        `1px solid ${showAbout ? '#4c90f040' : '#383e47'}`,
-              borderRadius:  '50%',
-              width:         '20px',
-              height:        '20px',
+              border:        `1px solid ${showAbout ? '#9caabb' : '#9caabb60'}`,
+              borderRadius:  '2px',
+              padding:       '3px 10px',
               display:       'flex',
               alignItems:    'center',
               justifyContent:'center',
               fontFamily:    'Inter, sans-serif',
-              fontSize:      '10px',
+              fontSize:      '9px',
               fontWeight:    600,
-              color:         showAbout ? '#4c90f0' : '#9caabb',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color:         showAbout ? '#f6f7f9' : '#c5cdd9',
               cursor:        'pointer',
               transition:    'all 0.15s',
               flexShrink:    0,
             }}
-            onMouseEnter={(e) => { if (!showAbout) { e.currentTarget.style.color = '#c5cdd9'; e.currentTarget.style.borderColor = '#404854'; }}}
-            onMouseLeave={(e) => { if (!showAbout) { e.currentTarget.style.color = '#9caabb'; e.currentTarget.style.borderColor = '#383e47'; }}}
+            onMouseEnter={(e) => { if (!showAbout) { e.currentTarget.style.color = '#f6f7f9'; e.currentTarget.style.borderColor = '#c5cdd9'; e.currentTarget.style.background = '#2f343c'; }}}
+            onMouseLeave={(e) => { if (!showAbout) { e.currentTarget.style.color = '#c5cdd9'; e.currentTarget.style.borderColor = '#9caabb60'; e.currentTarget.style.background = 'transparent'; }}}
           >
-            ?
+            ABOUT
           </button>
 
           {showAbout && (

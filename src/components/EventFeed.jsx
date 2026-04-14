@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
+import { InfoHint } from './InfoHint';
 
 // Blueprint-style column label
 const COL_LABEL = {
@@ -73,8 +74,15 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
           color:         '#9caabb',
+          display:       'flex',
+          alignItems:    'center',
         }}>
           EVENT FEED
+          <InfoHint
+            text="A list of every event on the map. Click any row to see full details — who was involved, where it happened, and how severe it was."
+            position="below"
+            width={230}
+          />
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button

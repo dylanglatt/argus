@@ -4,6 +4,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { EVENT_TYPES } from '../utils/constants';
+import { InfoHint } from './InfoHint';
 
 /**
  * TimeChart — stacked bar chart of event frequency by 6-hour UTC window.
@@ -173,8 +174,15 @@ export function TimeChart({ events }) {
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
           color:         '#9caabb',
+          display:       'flex',
+          alignItems:    'center',
         }}>
           ACTIVITY — 6H WINDOWS
+          <InfoHint
+            text="Shows how many events happened over time, broken into 6-hour windows. Useful for spotting surges or quiet periods."
+            position="below"
+            width={230}
+          />
         </span>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>

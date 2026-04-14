@@ -3,6 +3,7 @@ import { EVENT_TYPES } from '../utils/constants';
 import { HotZones } from './HotZones';
 import { CountryBrief } from './CountryBrief';
 import { ActorPanel } from './ActorPanel';
+import { InfoHint } from './InfoHint';
 
 // Blueprint-style section label
 const LABEL_STYLE = {
@@ -136,7 +137,14 @@ export function FilterPanel({
           paddingBottom:  '10px',
           borderBottom:   '1px solid #383e47',
         }}>
-          <span style={{ ...LABEL_STYLE, color: '#c5cdd9' }}>PARAMETERS</span>
+          <span style={{ ...LABEL_STYLE, color: '#c5cdd9', display: 'flex', alignItems: 'center' }}>
+            PARAMETERS
+            <InfoHint
+              text="Narrow things down by country, event type, date, or severity. Changes update the map and feed instantly."
+              position="right"
+              width={220}
+            />
+          </span>
           {hasActiveFilters && (
             <span style={{
               fontFamily:    'Inter, sans-serif',

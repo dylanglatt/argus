@@ -93,6 +93,7 @@ export default function App() {
         fetchedAt={fetchedAt}
         mapFocus={mapFocus}
         onToggleMapFocus={() => setMapFocus(f => !f)}
+        onShowGuide={() => setShowBrief(true)}
         isMobile={isMobile}
       />
 
@@ -380,7 +381,30 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
         fontWeight:    600,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
-        color:         '#8492a6',   // Blueprint gray1
+        color:         '#9caabb',
+        marginRight:   '8px',
+        display:       'flex',
+        alignItems:    'center',
+        gap:           '0',
+      }}>
+        MAP
+        <InfoHint
+          text="Each dot is a conflict event. Bigger dots are more severe. Colors show the type — red for battles, orange for explosions. Zoom in to see individual events."
+          position="below"
+          width={240}
+        />
+      </span>
+
+      {/* Separator */}
+      <div style={{ width: '1px', height: '14px', background: '#383e47', marginRight: '8px' }} />
+
+      <span style={{
+        fontFamily:    'Inter, sans-serif',
+        fontSize:      '9px',
+        fontWeight:    600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color:         '#8492a6',
         marginRight:   '8px',
         display:       'flex',
         alignItems:    'center',

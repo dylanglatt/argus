@@ -183,11 +183,28 @@ export function MissionBrief({ onDismiss }) {
           justifyContent:'space-between',
         }}>
           <span style={{
-            fontFamily: 'Inter, sans-serif',
-            fontSize:   '11px',
-            color:      '#5f6b7c',
+            fontFamily:  'Inter, sans-serif',
+            fontSize:    '12px',
+            fontWeight:  500,
+            color:       '#c5cdd9',
+            display:     'flex',
+            alignItems:  'center',
+            gap:         '6px',
           }}>
-            Look for <span style={{ color: '#4c90f0' }}>?</span> icons for more detail
+            <span style={{
+              display:        'inline-flex',
+              alignItems:     'center',
+              justifyContent: 'center',
+              width:          '16px',
+              height:         '16px',
+              borderRadius:   '50%',
+              border:         '1px solid #4c90f0',
+              color:          '#4c90f0',
+              fontSize:       '10px',
+              fontWeight:     700,
+              flexShrink:     0,
+            }}>?</span>
+            Look for these icons throughout the app for more detail
           </span>
 
           <button

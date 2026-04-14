@@ -16,7 +16,7 @@ export function InfoHint({ text, position = 'above', width = 220 }) {
   const triggerRef = useRef(null);
   const tooltipRef = useRef(null);
 
-  // Reposition tooltip to stay within viewport
+  // Reposition tooltip using fixed viewport coords — escapes all overflow:hidden parents
   useEffect(() => {
     if (!show || !triggerRef.current || !tooltipRef.current) return;
 
@@ -27,34 +27,26 @@ export function InfoHint({ text, position = 'above', width = 220 }) {
     let top, left;
 
     if (position === 'above') {
-      top  = -(tooltip.height + 8);
-      left = -(tooltip.width / 2) + (trigger.width / 2);
+      top  = trigger.top - tooltip.height - 8;
+      left = trigger.left + trigger.width / 2 - tooltip.width / 2;
     } else if (position === 'below') {
-      top  = trigger.height + 8;
-      left = -(tooltip.width / 2) + (trigger.width / 2);
+      top  = trigger.bottom + 8;
+      left = trigger.left + trigger.width / 2 - tooltip.width / 2;
     } else if (position === 'left') {
-      top  = -(tooltip.height / 2) + (trigger.height / 2);
-      left = -(tooltip.width + 8);
-    } else {
-      top  = -(tooltip.height / 2) + (trigger.height / 2);
-      left = trigger.width + 8;
+      top  = trigger.top + trigger.height / 2 - tooltip.height / 2;
+      left = trigger.left - tooltip.width - 8;
+    } else { // right
+      top  = trigger.top + trigger.height / 2 - tooltip.height / 2;
+      left = trigger.right + 8;
     }
 
-    // Clamp to viewport
-    const absLeft = trigger.left + left;
-    const absTop  = trigger.top + top;
-
-    if (absLeft < pad) left += (pad - absLeft);
-    if (absLeft + tooltip.width > window.innerWidth - pad)
-      left -= (absLeft + tooltip.width - window.innerWidth + pad);
-    if (absTop < pad) {
-      // flip to below
-      top = trigger.height + 8;
-    }
-    if (absTop + tooltip.height > window.innerHeight - pad) {
-      // flip to above
-      top = -(tooltip.height + 8);
-    }
+    // Clamp to viewport edges
+    if (left < pad) left = pad;
+    if (left + tooltip.width > window.innerWidth - pad)
+      left = window.innerWidth - tooltip.width - pad;
+    if (top < pad) top = pad;
+    if (top + tooltip.height > window.innerHeight - pad)
+      top = window.innerHeight - tooltip.height - pad;
 
     setCoords({ top, left });
   }, [show, position]);
@@ -70,24 +62,25 @@ export function InfoHint({ text, position = 'above', width = 220 }) {
         display:       'inline-flex',
         alignItems:    'center',
         justifyContent:'center',
-        width:         '14px',
-        height:        '14px',
+        width:         '18px',
+        height:        '18px',
         borderRadius:  '50%',
-        background:    show ? '#215db025' : 'transparent',
-        border:        `1px solid ${show ? '#4c90f050' : '#383e47'}`,
+        background:    show ? '#215db040' : '#215db018',
+        border:        `1px solid ${show ? '#4c90f0' : '#4c90f055'}`,
         cursor:        'help',
         transition:    'all 0.15s',
         flexShrink:    0,
-        marginLeft:    '4px',
+        marginLeft:    '5px',
         verticalAlign: 'middle',
+        boxShadow:     show ? '0 0 6px #4c90f040' : 'none',
       }}
     >
       {/* Question mark */}
       <span style={{
         fontFamily:    'Inter, sans-serif',
-        fontSize:      '8px',
+        fontSize:      '10px',
         fontWeight:    700,
-        color:         show ? '#4c90f0' : '#5f6b7c',
+        color:         show ? '#8abbff' : '#4c90f0',
         lineHeight:    1,
         transition:    'color 0.15s',
         userSelect:    'none',
@@ -100,7 +93,7 @@ export function InfoHint({ text, position = 'above', width = 220 }) {
         <div
           ref={tooltipRef}
           style={{
-            position:     'absolute',
+            position:     'fixed',
             top:          `${coords.top}px`,
             left:         `${coords.left}px`,
             width:        `${width}px`,

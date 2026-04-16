@@ -27,6 +27,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { getClassificationCache, saveClassificationCache } from './blobCache.js';
 
 // ---------------------------------------------------------------------------
 // Extract a human-readable headline from the URL slug.
@@ -357,33 +358,61 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const autoPassed = [];
-  const toReview   = [];
+  // ── Blob classification cache ───────────────────────────────────────────────
+  // GDELT publishes a 7-day rolling window every 15 minutes. Without caching,
+  // the same event is re-classified by Haiku on every GitHub Actions run (96×/day).
+  // We persist results in Vercel Blob keyed by event_id_cnty so each unique event
+  // is only sent to Haiku once. Entries are pruned after 8 days automatically.
+  const classCache = await getClassificationCache();
+  let   cacheHits  = 0;
+  let   cacheNew   = 0;
+
+  const autoPassed  = [];
+  const cacheServed = [];   // events resolved from cache (no API call)
+  const toReview    = [];
 
   for (const event of events) {
+    const id = event.event_id_cnty;
+
     if (canAutoPass(event)) {
       autoPassed.push(event);
-    } else {
-      toReview.push(event);
+      continue;
     }
+
+    // Check Blob cache for a prior classification of this event
+    if (classCache[id]) {
+      cacheHits++;
+      const cached = classCache[id];
+      if (cached.include) {
+        cacheServed.push({
+          ...event,
+          notes:             cached.reasoning || event.notes,
+          ai_classification: cached,
+        });
+      }
+      // include=false → event was previously rejected; skip silently
+      continue;
+    }
+
+    toReview.push(event);
   }
 
   // Events beyond maxReview are DROPPED, not passed through — we'd rather have
   // fewer high-confidence events than silently pass unreviewed noise.
-  const reviewSlice  = toReview.slice(0, maxReview);
-  const dropped      = toReview.length - reviewSlice.length;
+  const reviewSlice = toReview.slice(0, maxReview);
+  const dropped     = toReview.length - reviewSlice.length;
 
   console.log(
-    `[haiku] ${autoPassed.length} auto-passed (armed actors + Goldstein ≤ -5 + ≥5 sources) |` +
-    ` reviewing ${reviewSlice.length}/${toReview.length}` +
-    (dropped > 0 ? ` | ${dropped} dropped (over cap — increase maxReview if needed)` : '')
+    `[haiku] ${autoPassed.length} auto-passed | ${cacheHits} cache hits (no API call) |` +
+    ` reviewing ${reviewSlice.length} new events` +
+    (dropped > 0 ? ` | ${dropped} dropped (over cap)` : '')
   );
 
-  const passed  = [];
+  const passed   = [];
   let   filtered = 0;
 
   for (let i = 0; i < reviewSlice.length; i += batchSize) {
-    const batch    = reviewSlice.slice(i, i + batchSize);
+    const batch = reviewSlice.slice(i, i + batchSize);
 
     // Fetch article snippets in parallel with a per-request timeout.
     // Failures return null and fall back to URL slug extraction — never blocks.
@@ -396,6 +425,14 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
     for (let j = 0; j < batch.length; j++) {
       const { pass, classification } = results[j];
       const ev = batch[j];
+      const id = ev.event_id_cnty;
+
+      // Persist the result to the cache (include=true and include=false both cached
+      // so rejected events are never re-queried either).
+      if (classification) {
+        classCache[id] = { ...classification, classifiedAt: Date.now() };
+        cacheNew++;
+      }
 
       if (pass) {
         // Attach structured AI classification to the event.
@@ -424,9 +461,15 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
     }
   }
 
+  // Persist updated cache back to Blob (only if we classified new events)
+  if (cacheNew > 0) {
+    await saveClassificationCache(classCache);
+  }
+
   console.log(
-    `[haiku] Done — kept ${passed.length}/${reviewSlice.length} reviewed | filtered ${filtered} as noise`
+    `[haiku] Done — ${cacheHits} from cache | ${passed.length} new passes | ${filtered} filtered` +
+    (cacheNew > 0 ? ` | ${cacheNew} new entries saved to cache` : '')
   );
 
-  return [...autoPassed, ...passed];
+  return [...autoPassed, ...cacheServed, ...passed];
 }

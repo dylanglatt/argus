@@ -11,7 +11,9 @@
 
 import { put, list, getDownloadUrl } from '@vercel/blob';
 
-const BLOB_KEY = 'events.json';
+const BLOB_KEY             = 'events.json';
+const HAIKU_CACHE_KEY      = 'haiku-classifications.json';
+const HAIKU_CACHE_MAX_DAYS = 8; // prune entries older than this (matches GDELT 7-day window + buffer)
 
 /**
  * Returns true if BLOB_READ_WRITE_TOKEN is present in the environment.
@@ -61,6 +63,60 @@ export async function getEventsFromBlob() {
   } catch (err) {
     console.warn('[blobCache] getEventsFromBlob error:', err.message);
     return null;
+  }
+}
+
+/**
+ * Load the persisted Haiku classification cache from Blob.
+ * Returns a plain object: { [event_id_cnty]: { include, score, breakdown,
+ *                                               reasoning, tags, confidence,
+ *                                               classifiedAt } }
+ * Returns an empty object on any failure so the caller degrades gracefully.
+ */
+export async function getClassificationCache() {
+  if (!isBlobConfigured()) return {};
+  try {
+    const { blobs } = await list({ prefix: HAIKU_CACHE_KEY, limit: 1 });
+    if (!blobs[0]?.url) return {};
+    const downloadUrl = await getDownloadUrl(blobs[0].url);
+    const res = await fetch(downloadUrl);
+    if (!res.ok) return {};
+    const data = await res.json();
+    if (typeof data !== 'object' || Array.isArray(data)) return {};
+    console.log(`[blobCache] loaded ${Object.keys(data).length} cached Haiku classifications`);
+    return data;
+  } catch (err) {
+    console.warn('[blobCache] getClassificationCache error:', err.message);
+    return {};
+  }
+}
+
+/**
+ * Persist the Haiku classification cache to Blob, pruning entries older than
+ * HAIKU_CACHE_MAX_DAYS so the blob doesn't grow unbounded.
+ *
+ * @param {Object} cache - { [event_id_cnty]: { ..., classifiedAt: number } }
+ */
+export async function saveClassificationCache(cache) {
+  if (!isBlobConfigured()) return;
+  const cutoffMs = Date.now() - HAIKU_CACHE_MAX_DAYS * 24 * 60 * 60 * 1000;
+  const pruned   = {};
+  for (const [id, entry] of Object.entries(cache)) {
+    if (entry.classifiedAt >= cutoffMs) pruned[id] = entry;
+  }
+  try {
+    await put(HAIKU_CACHE_KEY, JSON.stringify(pruned), {
+      access:           'private',
+      addRandomSuffix:  false,
+      contentType:      'application/json',
+    });
+    const pruneCount = Object.keys(cache).length - Object.keys(pruned).length;
+    console.log(
+      `[blobCache] saved ${Object.keys(pruned).length} Haiku classifications` +
+      (pruneCount > 0 ? ` (pruned ${pruneCount} stale entries)` : '')
+    );
+  } catch (err) {
+    console.warn('[blobCache] saveClassificationCache error:', err.message);
   }
 }
 

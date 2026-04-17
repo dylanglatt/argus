@@ -1,8 +1,12 @@
 name: Refresh Argus Events
 
 on:
+  # Daily at 12:00 UTC. GDELT + UCDP are backward-looking — a fresh pull once
+  # a day is enough for the dashboard to feel current. Anthropic spend scales
+  # linearly with this cadence, so anything more frequent burns money for no
+  # analyst value. Trigger manually via workflow_dispatch before a live demo.
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '0 12 * * *'
   workflow_dispatch:
 
 jobs:

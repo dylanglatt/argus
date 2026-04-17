@@ -16,7 +16,14 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { getEventsFromBlob } from '../../server/blobCache.js';
+import {
+  getEventsFromBlob,
+  getCachedSitrep,
+  saveCachedSitrep,
+  getHaikuSpendToday,
+  addHaikuSpend,
+  getDailyBudgetUsd,
+} from '../../server/blobCache.js';
 
 const SITREP_PROMPT = `You are a senior conflict analyst writing a theater situation report for a classified intelligence briefing.
 
@@ -42,7 +49,9 @@ Rules:
 - If data is sparse, say so briefly and note what is known`;
 
 export default async function handler(req, res) {
-  res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=3600');
+  // 24h CDN cache + 48h stale-while-revalidate. Blob-level cache below
+  // handles anything the CDN misses (cold starts, region swaps, cache busts).
+  res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=172800');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET') {
@@ -56,8 +65,42 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Kill switch — return a clear banner instead of calling Haiku.
+  if (process.env.DISABLE_HAIKU === '1' || process.env.DISABLE_HAIKU === 'true') {
+    res.status(200).json({
+      sitrep:       'AI-generated sitrep is temporarily disabled. See event breakdown below for raw signal data.',
+      gdelt_events: 0,
+      ucdp_events:  0,
+      generated_at: Date.now(),
+      source:       'disabled',
+    });
+    return;
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     res.status(503).json({ error: 'AI brief unavailable — ANTHROPIC_API_KEY not configured' });
+    return;
+  }
+
+  // Blob-level persistent cache — survives deploys and cold starts, unlike
+  // the CDN cache. Country click traffic during a demo won't re-spend.
+  const cached = await getCachedSitrep(country);
+  if (cached?.sitrep) {
+    res.status(200).json({ ...cached, source: 'blob-cache' });
+    return;
+  }
+
+  // Daily-spend safety net
+  const cap        = getDailyBudgetUsd();
+  const spendToday = await getHaikuSpendToday();
+  if (spendToday.usd >= cap) {
+    res.status(200).json({
+      sitrep:       `AI sitrep unavailable — daily spend cap ($${cap}) reached. Resets at 00:00 UTC.`,
+      gdelt_events: 0,
+      ucdp_events:  0,
+      generated_at: Date.now(),
+      source:       'budget-cap',
+    });
     return;
   }
 
@@ -107,18 +150,31 @@ export default async function handler(req, res) {
     const client   = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const message  = await client.messages.create({
       model:      'claude-haiku-4-5-20251001',
-      max_tokens: 400,
+      max_tokens: 260,   // prompt caps output at 200 words
       messages:   [{ role: 'user', content: prompt }],
     });
 
     const sitrep = message.content[0]?.text?.trim() || 'Situation report unavailable.';
 
-    res.status(200).json({
+    // Record spend + persist to 24h blob cache
+    if (message.usage) {
+      await addHaikuSpend(
+        message.usage.input_tokens  || 0,
+        message.usage.output_tokens || 0,
+      );
+    }
+
+    const payload = {
       sitrep,
       gdelt_events:  gdeltEvents.length,
       ucdp_events:   ucdpEvents.length,
       generated_at:  Date.now(),
-    });
+    };
+
+    // Fire-and-forget: don't block the response on the cache write
+    saveCachedSitrep(country, payload).catch(() => {});
+
+    res.status(200).json({ ...payload, source: 'fresh' });
   } catch (err) {
     console.error('[brief] Error generating sitrep:', err.message);
     res.status(500).json({ error: 'Failed to generate situation report', detail: err.message });

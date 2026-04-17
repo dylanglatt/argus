@@ -27,7 +27,13 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { getClassificationCache, saveClassificationCache } from './blobCache.js';
+import {
+  getClassificationCache,
+  saveClassificationCache,
+  getHaikuSpendToday,
+  addHaikuSpend,
+  getDailyBudgetUsd,
+} from './blobCache.js';
 
 // ---------------------------------------------------------------------------
 // Extract a human-readable headline from the URL slug.
@@ -271,7 +277,18 @@ function parseClassification(raw) {
 //   FAIL CLOSED — everything else: we'd rather drop an ambiguous event than
 //                 show noise on an operational dashboard.
 // ---------------------------------------------------------------------------
-async function classifyEvent(client, event, snippet = null, retries = 2) {
+async function classifyEvent(client, event, snippet = null, retries = 2, budget = null) {
+  // Budget short-circuit — caller maintains a running spend estimate and
+  // skips further calls once the daily cap is hit. High-confidence events
+  // still fail-open so a kinetic incident doesn't get silently dropped.
+  if (budget && budget.spent >= budget.cap) {
+    const isHigh =
+      (ARMED_ACTOR_TYPES.has(event.actor1_type) || ARMED_ACTOR_TYPES.has(event.actor2_type)) &&
+      event.goldstein_scale <= -4;
+    if (isHigh) return { pass: true, classification: null, skipped: 'budget' };
+    return { pass: false, classification: null, skipped: 'budget' };
+  }
+
   const slug           = extractUrlSlug(event.source_url);
   const articleContext = buildArticleContext(snippet, slug);
 
@@ -296,11 +313,20 @@ async function classifyEvent(client, event, snippet = null, retries = 2) {
     try {
       const message = await client.messages.create({
         model:      'claude-haiku-4-5-20251001',
-        max_tokens: 300,   // structured JSON needs more room than a YES/NO + line
+        max_tokens: 220,   // JSON response is compact; 220 leaves headroom
         messages:   [{ role: 'user', content: prompt }],
       });
       const raw    = message.content[0]?.text?.trim() || '';
       const result = parseClassification(raw);
+
+      // Bump running budget estimate based on reported usage
+      if (budget && message.usage) {
+        const inTok  = message.usage.input_tokens  || 0;
+        const outTok = message.usage.output_tokens || 0;
+        budget.spent += (inTok * 1.0 + outTok * 5.0) / 1_000_000;
+        budget.inTok  += inTok;
+        budget.outTok += outTok;
+      }
 
       if (!result) {
         console.warn(`[haiku] Unparseable response for ${event.event_id_cnty}: ${raw.slice(0, 80)}`);
@@ -342,7 +368,7 @@ async function classifyEvent(client, event, snippet = null, retries = 2) {
 // @param {number} options.maxReview  Max events reviewed per cycle (default 400)
 // @returns {Promise<Array>} Filtered events
 // ---------------------------------------------------------------------------
-export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 } = {}) {
+export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 150 } = {}) {
   // Vercel serverless functions have a 30s timeout — the 10s inter-batch delay
   // makes Haiku infeasible here. Structural CAMEO filtering already gates to
   // kinetic events only; CDN-level caching (s-maxage=3600) handles freshness.
@@ -355,6 +381,31 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
     console.warn('[haiku] ANTHROPIC_API_KEY not set — skipping Haiku filter');
     return events;
   }
+
+  // Kill switch — set DISABLE_HAIKU=1 to pass everything through without
+  // any API calls. Preserves the dashboard's behavior (events still flow)
+  // while guaranteeing zero Haiku spend for the run.
+  if (process.env.DISABLE_HAIKU === '1' || process.env.DISABLE_HAIKU === 'true') {
+    console.warn('[haiku] DISABLE_HAIKU set — passing events through without classification');
+    return events;
+  }
+
+  // Read current day's spend ledger; refuse to start if already over cap.
+  const cap         = getDailyBudgetUsd();
+  const spendToday  = await getHaikuSpendToday();
+  if (spendToday.usd >= cap) {
+    console.warn(
+      `[haiku] Daily spend cap hit ($${spendToday.usd.toFixed(4)} / $${cap}) — passing events through. ` +
+      `Raise HAIKU_DAILY_BUDGET_USD or wait until tomorrow.`
+    );
+    return events;
+  }
+  const budget = {
+    cap,
+    spent:  spendToday.usd,
+    inTok:  0,
+    outTok: 0,
+  };
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -419,7 +470,7 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
     const snippets = await Promise.all(batch.map((e) => fetchArticleSnippet(e.source_url)));
 
     const results = await Promise.all(
-      batch.map((e, idx) => classifyEvent(client, e, snippets[idx]))
+      batch.map((e, idx) => classifyEvent(client, e, snippets[idx], 2, budget))
     );
 
     for (let j = 0; j < batch.length; j++) {
@@ -464,6 +515,18 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 600 
   // Persist updated cache back to Blob (only if we classified new events)
   if (cacheNew > 0) {
     await saveClassificationCache(classCache);
+  }
+
+  // Persist this run's spend to the daily ledger (delta since we started)
+  const runInTok  = budget.inTok;
+  const runOutTok = budget.outTok;
+  if (runInTok > 0 || runOutTok > 0) {
+    const delta = await addHaikuSpend(runInTok, runOutTok);
+    console.log(
+      `[haiku] Spend this run: $${delta.toFixed(4)} ` +
+      `(${runInTok} in + ${runOutTok} out tokens) | ` +
+      `day total ~$${budget.spent.toFixed(4)} / $${budget.cap}`
+    );
   }
 
   console.log(

@@ -6,13 +6,13 @@
  * the 1,000 calls/day rate limit.
  *
  * Exports:
- *   getReportsForCountry(countryName) — returns latest 5 reports
+ *   getReportsForCountry(countryName), returns latest 5 reports
  */
 
 import https from 'https';
 
 // ---------------------------------------------------------------------------
-// Per-country cache — { [country]: { data, fetchedAt } }
+// Per-country cache, { [country]: { data, fetchedAt } }
 // ---------------------------------------------------------------------------
 const countryCache = {};
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour

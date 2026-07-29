@@ -1,9 +1,9 @@
 /**
  * api/firms/corroborate-batch.js
  * --------------------------------
- * Vercel serverless function — POST /api/firms/corroborate-batch
+ * Vercel serverless function, POST /api/firms/corroborate-batch
  *
- * Batch satellite corroboration — checks NASA FIRMS thermal anomaly data
+ * Batch satellite corroboration, checks NASA FIRMS thermal anomaly data
  * against a set of conflict events and flags those with nearby detections.
  *
  * Request body: { events: [{ id, lat, lon, date }] }

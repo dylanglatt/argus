@@ -1,5 +1,5 @@
 /**
- * Argus — Design tokens (Blueprint-derived dark theme)
+ * Argus, Design tokens (Blueprint-derived dark theme)
  *
  * Color palette sourced from palantir/blueprint packages/colors.
  * Blueprint dark theme reference:
@@ -18,32 +18,32 @@
 // ── Page / chrome palette ──────────────────────────────────────────────────
 export const COLORS = {
   // Surfaces
-  pageBg:          '#111418',   // Blueprint black — outermost background
-  panelBg:         '#1c2127',   // Blueprint dark-gray1 — sidebar, panel bg
-  elevatedBg:      '#252a31',   // Blueprint dark-gray2 — inputs, cards, dropdowns
-  hoverBg:         '#2f343c',   // Blueprint dark-gray3 — hover state
+  pageBg:          '#111418',   // Blueprint black, outermost background
+  panelBg:         '#1c2127',   // Blueprint dark-gray1, sidebar, panel bg
+  elevatedBg:      '#252a31',   // Blueprint dark-gray2, inputs, cards, dropdowns
+  hoverBg:         '#2f343c',   // Blueprint dark-gray3, hover state
 
   // Borders
-  border:          '#2f343c',   // Blueprint dark-gray3 — panel/component outlines
-  borderInner:     '#383e47',   // Blueprint dark-gray4 — row dividers, section separators
+  border:          '#2f343c',   // Blueprint dark-gray3, panel/component outlines
+  borderInner:     '#383e47',   // Blueprint dark-gray4, row dividers, section separators
 
   // Text hierarchy
   textPrimary:     '#f6f7f9',   // Blueprint light-gray5
   textSecondary:   '#c5cdd9',   // Blueprint gray4 (boosted for readability)
-  textMuted:       '#9caabb',   // Blueprint gray2 — labels, column headers (boosted)
-  textDim:         '#8492a6',   // Blueprint gray1 — dim text / timestamps (boosted)
+  textMuted:       '#9caabb',   // Blueprint gray2, labels, column headers (boosted)
+  textDim:         '#8492a6',   // Blueprint gray1, dim text / timestamps (boosted)
 
   // Intent colors (Blueprint dark theme)
-  blue:            '#4c90f0',   // Blueprint blue4 — primary accent / focus
-  blueDim:         '#215db0',   // Blueprint blue2 — dim links / inactive accent
-  green:           '#32a467',   // Blueprint green4 — success / live indicators
-  red:             '#e76a6e',   // Blueprint red4 — danger / high-impact
-  orange:          '#ec9a3c',   // Blueprint orange4 — warning / medium impact
-  gold:            '#fbb360',   // Blueprint orange5 — low-impact warning
+  blue:            '#4c90f0',   // Blueprint blue4, primary accent / focus
+  blueDim:         '#215db0',   // Blueprint blue2, dim links / inactive accent
+  green:           '#32a467',   // Blueprint green4, success / live indicators
+  red:             '#e76a6e',   // Blueprint red4, danger / high-impact
+  orange:          '#ec9a3c',   // Blueprint orange4, warning / medium impact
+  gold:            '#fbb360',   // Blueprint orange5, low-impact warning
 };
 
 // ── Event type palette ─────────────────────────────────────────────────────
-// Data-only colors — used exclusively on event markers, chart bars, type indicators.
+// Data-only colors, used exclusively on event markers, chart bars, type indicators.
 // Mapped to Blueprint semantic intent colors for visual consistency.
 export const EVENT_TYPES = {
   'Battles': {

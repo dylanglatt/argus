@@ -1,23 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
+import { resolveActorName } from '../utils/actors';
+import { InfoHint } from './InfoHint';
+import { noEmDash } from '../utils/text';
+
+const SEVERITY_METHOD =
+  'Severity is a 0 to 10 weighted composite: kinetic intensity of the event and sub-event type (40%), ' +
+  'media reach (20%), source corroboration (15%), inverted Goldstein baseline (15%), and hostility of ' +
+  'coverage (10%), plus a small boost when NASA FIRMS satellite data corroborates the location. ' +
+  "Goldstein barely varies for kinetic events, so it is one input here, not the whole score.";
 
 /**
- * EventDetailPanel — slide-in drawer from the right edge of the bottom panel.
+ * EventDetailPanel, slide-in drawer from the right edge of the bottom panel.
  * Blueprint dark: elevatedBg (#252a31) surface, Blueprint intent colors.
  * Impact callout uses Blueprint's "callout" pattern (left-border tinted box).
  */
-export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
+export function EventDetailPanel({ event, onClose, onConfirm, onDismiss, isConfirmed = false }) {
   const [visible,  setVisible]  = useState(false);
   const [feedback, setFeedback] = useState(null); // null | 'confirmed' | 'noise'
 
   useEffect(() => {
     if (event) {
       requestAnimationFrame(() => setVisible(true));
-      setFeedback(null); // reset on new event
+      // Reflect persisted analyst state: a previously confirmed event opens in
+      // its confirmed state rather than resetting to a blank prompt.
+      setFeedback(isConfirmed ? 'confirmed' : null);
     } else {
       setVisible(false);
     }
-  }, [event]);
+  }, [event, isConfirmed]);
 
   if (!event) return null;
 
@@ -40,16 +51,24 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
 
   return (
     <div style={{
-      position:      'absolute',
+      // Full-height fixed drawer anchored to the right edge of the viewport.
+      // Previously absolute inside the 35% bottom panel, which clipped the
+      // drawer and its content at normal widths. Fixed positioning makes it a
+      // proper side drawer, and the width clamp keeps it inside the viewport on
+      // narrow screens (was a hard 340px that could overflow).
+      position:      'fixed',
       top:           0,
       right:         0,
       bottom:        0,
-      width:         '340px',
+      height:        '100dvh',
+      width:         'min(360px, 100vw)',
+      maxWidth:      '100vw',
+      boxSizing:     'border-box',
       background:    '#1c2127',    // Blueprint panelBg
       borderLeft:    '1px solid #2f343c',
       display:       'flex',
       flexDirection: 'column',
-      zIndex:        500,
+      zIndex:        1000,
       transform:     visible ? 'translateX(0)' : 'translateX(100%)',
       transition:    'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
       overflow:      'hidden',
@@ -182,7 +201,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           )}
         </div>
 
-        {/* SAT corroboration callout — shown for GDELT events corroborated by FIRMS */}
+        {/* SAT corroboration callout, shown for GDELT events corroborated by FIRMS */}
         {!isUCDP && event.satellite_corroborated && (
           <div style={{
             display:      'flex',
@@ -230,12 +249,12 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           </div>
         )}
 
-        {/* AI Classification — shown for GDELT events classified by Haiku */}
+        {/* AI Classification, shown for GDELT events classified by Haiku */}
         {!isUCDP && event.ai_classification && (
           <AiClassificationPanel classification={event.ai_classification} />
         )}
 
-        {/* Impact callout — Blueprint callout pattern */}
+        {/* Impact callout, Blueprint callout pattern */}
         <div style={{
           display:      'flex',
           alignItems:   'center',
@@ -256,8 +275,11 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               letterSpacing: '0.08em',
               color:         '#9caabb',
               marginBottom:  '2px',
+              display:       'flex',
+              alignItems:    'center',
             }}>
               CONFLICT SEVERITY
+              <InfoHint text={SEVERITY_METHOD} position="below" width={260} />
             </div>
             <div style={{
               fontFamily: 'JetBrains Mono, monospace',
@@ -270,7 +292,12 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
             </div>
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <div style={{ ...metaLabelStyle, marginBottom: '2px' }}>GOLDSTEIN</div>
+            <div
+              title="Raw CAMEO Goldstein value (-10 to +10). One input to the severity score above, not the whole score."
+              style={{ ...metaLabelStyle, marginBottom: '2px', cursor: 'help' }}
+            >
+              GOLDSTEIN
+            </div>
             <div style={{
               fontFamily: 'JetBrains Mono, monospace',
               fontSize:   '13px',
@@ -282,7 +309,12 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           </div>
         </div>
 
-        {/* CASUALTIES — UCDP events only */}
+        {/* Severity derivation, how the 0-10 score was composed */}
+        {event.severity_breakdown && (
+          <SeverityBreakdown breakdown={event.severity_breakdown} />
+        )}
+
+        {/* CASUALTIES, UCDP events only */}
         {hasFatalities && (
           <>
             <SectionLabel>CASUALTIES</SectionLabel>
@@ -292,7 +324,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               gap:          '8px',
               marginBottom: '16px',
             }}>
-              {/* Best estimate — prominent */}
+              {/* Best estimate, prominent */}
               <div style={{
                 flex:         1,
                 padding:      '10px 12px',
@@ -355,24 +387,102 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           </>
         )}
 
-        {/* Actors */}
+        {/* Actors, only positively resolved actors are shown. When GDELT's
+            extracted names are generic nouns or places, we label the event
+            "Unattributed" rather than present an artifact as a belligerent. */}
         <SectionLabel>ACTORS</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-          <MetaField label="ACTOR 1" value={event.actor1 !== 'Unknown' ? event.actor1 : '—'} />
-          <MetaField label="ACTOR 2" value={(event.actor2 && event.actor2 !== 'Unknown') ? event.actor2 : '—'} />
-        </div>
+        {(() => {
+          const a1 = resolveActorName(event.actor1, event.actor1_type);
+          const a2 = resolveActorName(event.actor2, event.actor2_type);
+          if (!a1 && !a2) {
+            return (
+              <div
+                title="GDELT did not extract a resolvable named actor for this event. See methodology."
+                style={{
+                  fontFamily:    'Inter, sans-serif',
+                  fontSize:      '11px',
+                  fontStyle:     'italic',
+                  color:         '#8492a6',
+                  marginBottom:  '16px',
+                  cursor:        'help',
+                }}
+              >
+                Unattributed
+              </div>
+            );
+          }
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+              <MetaField label="ACTOR 1" value={a1 || 'Unattributed'} />
+              <MetaField label="ACTOR 2" value={a2 || 'Unattributed'} />
+            </div>
+          );
+        })()}
 
         {/* Signal intelligence */}
         <SectionLabel>SIGNAL INTELLIGENCE</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
           <MetaField label="MENTIONS"  value={(event.num_mentions ?? 0).toLocaleString()} mono />
           <MetaField label="SOURCES"   value={(event.num_sources ?? 0).toLocaleString()}  mono />
           <MetaField label="AVG TONE"  value={toneStr} mono valueColor={toneColor}
             tooltip="How news sources are framing this event. Negative numbers mean more hostile coverage." />
-          <MetaField label="SUB-EVENT" value={event.sub_event_type || '—'} />
+          <MetaField label="SUB-EVENT" value={event.sub_event_type || '-'} />
         </div>
 
-        {/* Notes — Blueprint callout box */}
+        {/* Coverage line, click through to the underlying article. GDELT's
+            export records one representative SOURCEURL per event; that is the
+            article we link to. The mention/outlet counts are GDELT's tally of
+            total coverage for the same incident. */}
+        {(() => {
+          const mentions = event.num_mentions ?? 0;
+          const outlets  = event.num_sources ?? 0;
+          const coverage = `${mentions.toLocaleString()} mention${mentions === 1 ? '' : 's'} across ${outlets.toLocaleString()} outlet${outlets === 1 ? '' : 's'}`;
+          return event.source_url ? (
+            <a
+              href={event.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open the source article on the publisher's site"
+              style={{
+                display:        'flex',
+                alignItems:     'center',
+                justifyContent: 'space-between',
+                gap:            '8px',
+                marginBottom:   '16px',
+                padding:        '7px 10px',
+                background:     '#1a2030',
+                border:         '1px solid #2f3d52',
+                borderRadius:   '2px',
+                textDecoration: 'none',
+                transition:     'border-color 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#4c90f0')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#2f3d52')}
+            >
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#c5cdd9' }}>
+                {coverage}
+              </span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 600, color: '#4c90f0', whiteSpace: 'nowrap' }}>
+                Read source ↗
+              </span>
+            </a>
+          ) : (
+            <div style={{
+              fontFamily:   'Inter, sans-serif',
+              fontSize:     '11px',
+              color:        '#8492a6',
+              marginBottom: '16px',
+              padding:      '7px 10px',
+              background:   '#1c2127',
+              border:       '1px solid #2f343c',
+              borderRadius: '2px',
+            }}>
+              {coverage}. Source link unavailable (GDELT recorded a root domain only).
+            </div>
+          );
+        })()}
+
+        {/* Notes, Blueprint callout box */}
         {event.notes && (
           <>
             <SectionLabel>NOTES</SectionLabel>
@@ -387,7 +497,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               border:       '1px solid #383e47',
               borderRadius: '2px',
             }}>
-              {event.notes}
+              {noEmDash(event.notes)}
             </div>
           </>
         )}
@@ -411,7 +521,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
         {/* Analyst Feedback */}
         <SectionLabel>ANALYST ASSESSMENT</SectionLabel>
         {feedback ? (
-          // Post-submission state — show which verdict was recorded
+          // Post-submission state, show which verdict was recorded
           <div style={{
             display:      'flex',
             alignItems:   'center',
@@ -530,7 +640,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
           </div>
         )}
 
-        {/* Source link — Blueprint "intent" button style */}
+        {/* Source link, Blueprint "intent" button style */}
         {event.source_url ? (
           <a
             href={event.source_url}
@@ -585,7 +695,7 @@ export function EventDetailPanel({ event, onClose, onConfirm, onDismiss }) {
               fontWeight:    600,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
-              color:         '#8492a6',   // Blueprint gray1 — muted
+              color:         '#8492a6',   // Blueprint gray1, muted
             }}>
               SOURCE UNAVAILABLE
             </span>
@@ -639,7 +749,89 @@ function MetaField({ label, value, mono, valueColor, tooltip }) {
         textOverflow: 'ellipsis',
         whiteSpace:   'nowrap',
       }}>
-        {value || '—'}
+        {value || '-'}
+      </div>
+    </div>
+  );
+}
+
+// ── Severity Breakdown ────────────────────────────────────────────────────
+// Shows how the 0-10 conflict severity score was composed from its weighted
+// components, so the number is auditable rather than opaque.
+
+const SEV_COMPONENTS = [
+  { key: 'intensity',     label: 'INTENSITY', weight: '40%' },
+  { key: 'reach',         label: 'REACH',     weight: '20%' },
+  { key: 'corroboration', label: 'CORROB',    weight: '15%' },
+  { key: 'goldstein',     label: 'GOLDSTEIN', weight: '15%' },
+  { key: 'tone',          label: 'TONE',      weight: '10%' },
+];
+
+function SeverityBreakdown({ breakdown }) {
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <div style={{
+        ...metaLabelStyle,
+        marginBottom:  '6px',
+        display:       'flex',
+        alignItems:    'center',
+        justifyContent:'space-between',
+      }}>
+        <span>SEVERITY DERIVATION</span>
+        <span style={{ fontSize: '8px', color: '#8492a6' }}>0-10 SCALE</span>
+      </div>
+      <div style={{
+        display:       'flex',
+        flexDirection: 'column',
+        gap:           '4px',
+        padding:       '8px 10px',
+        background:    '#252a31',
+        border:        '1px solid #383e47',
+        borderRadius:  '2px',
+      }}>
+        {SEV_COMPONENTS.map(({ key, label, weight }) => {
+          const val = breakdown[key] ?? 0;
+          const pct = Math.max(0, Math.min(100, (val / 10) * 100));
+          const barColor = pct >= 67 ? '#e76a6e' : pct >= 34 ? '#fbb360' : '#4c90f0';
+          return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                fontFamily:    'Inter, sans-serif',
+                fontSize:      '8px',
+                fontWeight:    600,
+                letterSpacing: '0.06em',
+                color:         '#9caabb',
+                minWidth:      '58px',
+              }}>
+                {label}
+                <span style={{ color: '#6a7585', marginLeft: '3px' }}>{weight}</span>
+              </span>
+              <div style={{ flex: 1, height: '3px', background: '#383e47', borderRadius: '1px', overflow: 'hidden' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: '1px', transition: 'width 0.3s ease' }} />
+              </div>
+              <span style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize:   '8px',
+                color:      '#8492a6',
+                minWidth:   '22px',
+                textAlign:  'right',
+              }}>
+                {val.toFixed(1)}
+              </span>
+            </div>
+          );
+        })}
+        {breakdown.satellite_boost > 0 && (
+          <div style={{
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '8px',
+            color:         '#32a467',
+            letterSpacing: '0.04em',
+            marginTop:     '2px',
+          }}>
+            + {breakdown.satellite_boost.toFixed(1)} satellite corroboration boost
+          </div>
+        )}
       </div>
     </div>
   );
@@ -649,7 +841,7 @@ function MetaField({ label, value, mono, valueColor, tooltip }) {
 //
 // Displays the structured Haiku assessment: total score, per-dimension
 // breakdown, tags, confidence, and one-line reasoning note.
-// Only rendered for GDELT events — UCDP events are human-validated already.
+// Only rendered for GDELT events. UCDP events are human-validated already.
 
 const DIMENSIONS = [
   { key: 'credibility',        label: 'CRED',    max: 2 },
@@ -714,12 +906,12 @@ function AiClassificationPanel({ classification }) {
             color:      scoreColor,
             lineHeight: 1,
           }}>
-            {score != null ? score : '—'}
+            {score != null ? score : '-'}
             <span style={{ fontSize: '11px', color: '#8492a6' }}>/12</span>
           </div>
         </div>
 
-        {/* Dimension breakdown — mini bar chart */}
+        {/* Dimension breakdown, mini bar chart */}
         {breakdown && (
           <div style={{
             flex:           1,
@@ -807,7 +999,7 @@ function AiClassificationPanel({ classification }) {
           borderRadius: '2px',
           fontStyle:    'italic',
         }}>
-          "{reasoning}"
+          "{noEmDash(reasoning)}"
         </div>
       )}
 

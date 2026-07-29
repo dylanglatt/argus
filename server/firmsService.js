@@ -6,9 +6,9 @@
  * fire/explosion detections that can corroborate media-reported conflict events.
  *
  * Exports:
- *   getFirmsData()              — returns all cached thermal anomalies
- *   corroborateEvent(lat, lon, dateStr) — checks for nearby detections
- *   corroborateBatch(events)    — batch corroboration for multiple events
+ *   getFirmsData()             , returns all cached thermal anomalies
+ *   corroborateEvent(lat, lon, dateStr), checks for nearby detections
+ *   corroborateBatch(events)   , batch corroboration for multiple events
  */
 
 import https from 'https';
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
-// Conflict zone index — built from POLECAT historical data by
+// Conflict zone index, built from POLECAT historical data by
 // python/build_conflict_index.py. Filters FIRMS detections so only thermal
 // anomalies that fall in historically documented conflict areas count as
 // corroboration. Suppresses agricultural burns, gas flares, and industrial
@@ -35,18 +35,18 @@ function loadConflictZoneIndex() {
   const indexPath = path.join(__dirname, '../data/processed/conflict_zone_index.json');
   try {
     if (!fs.existsSync(indexPath)) {
-      console.warn('[firms] No conflict zone index found — run python3 python/build_conflict_index.py to enable historical filtering');
+      console.warn('[firms] No conflict zone index found, run python3 python/build_conflict_index.py to enable historical filtering');
       return;
     }
     const raw  = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
     conflictZoneIndex = raw;
-    console.log(`[firms] Conflict zone index loaded — ${raw.cell_count.toLocaleString()} cells, ${raw.grid_size_deg}° grid`);
+    console.log(`[firms] Conflict zone index loaded, ${raw.cell_count.toLocaleString()} cells, ${raw.grid_size_deg}° grid`);
   } catch (err) {
     console.warn('[firms] Failed to load conflict zone index:', err.message);
   }
 }
 
-// Load once at module initialisation (synchronous, file is small — < 500 KB)
+// Load once at module initialisation (synchronous, file is small, < 500 KB)
 loadConflictZoneIndex();
 
 /**
@@ -64,7 +64,7 @@ function isConflictZone(lat, lon) {
 }
 
 // ---------------------------------------------------------------------------
-// Cache — 1 hour TTL (FIRMS updates every ~60 minutes)
+// Cache, 1 hour TTL (FIRMS updates every ~60 minutes)
 // ---------------------------------------------------------------------------
 let cache = { data: null, fetchedAt: 0, ttlMs: 60 * 60 * 1000 };
 let fetchInFlight = null;
@@ -78,7 +78,7 @@ function isCacheValid() {
 }
 
 // ---------------------------------------------------------------------------
-// HTTP fetch helper — uses built-in https module (same pattern as gdeltFetcher)
+// HTTP fetch helper, uses built-in https module (same pattern as gdeltFetcher)
 // ---------------------------------------------------------------------------
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
@@ -98,7 +98,7 @@ function httpsGet(url) {
 }
 
 // ---------------------------------------------------------------------------
-// CSV parser — FIRMS returns CSV with a header row
+// CSV parser, FIRMS returns CSV with a header row
 // ---------------------------------------------------------------------------
 function parseFirmsCsv(csv) {
   const lines = csv.trim().split('\n');
@@ -152,7 +152,7 @@ async function fetchFirmsData() {
 
   const mapKey = process.env.FIRMS_MAP_KEY;
   if (!mapKey) {
-    console.warn('[firms] FIRMS_MAP_KEY not set — skipping FIRMS fetch');
+    console.warn('[firms] FIRMS_MAP_KEY not set, skipping FIRMS fetch');
     return [];
   }
 
@@ -188,7 +188,7 @@ const MIN_DISPLAY_FRP = 30;
 
 /**
  * Returns all cached FIRMS thermal anomalies (confidence > 60).
- * Used by corroboration checks — intentionally unfiltered so low-FRP
+ * Used by corroboration checks, intentionally unfiltered so low-FRP
  * detections can still contribute to the corroboration count.
  */
 export async function getFirmsData() {
@@ -197,8 +197,8 @@ export async function getFirmsData() {
 
 /**
  * Returns FIRMS detections filtered for the map display layer:
- *   1. FRP ≥ MIN_DISPLAY_FRP — removes agricultural burns and low-energy fires
- *   2. Conflict zone check   — removes detections outside historically active
+ *   1. FRP ≥ MIN_DISPLAY_FRP, removes agricultural burns and low-energy fires
+ *   2. Conflict zone check  , removes detections outside historically active
  *                              conflict cells (uses the POLECAT-derived index)
  *
  * Separate from getFirmsData() so corroboration logic retains full sensitivity
@@ -259,7 +259,7 @@ export async function corroborateEvent(lat, lon, dateStr) {
     const acqTime = new Date(d.acq_date + 'T' + (d.acq_time || '0000').padStart(4, '0').slice(0, 2) + ':' + (d.acq_time || '0000').padStart(4, '0').slice(2) + ':00Z').getTime();
     if (isNaN(acqTime) || Math.abs(acqTime - eventTime) > windowMs) continue;
 
-    // Conflict zone check — skip detections in historically quiet areas
+    // Conflict zone check, skip detections in historically quiet areas
     // (agricultural burns, gas flares, industrial fires near frontlines)
     if (!isConflictZone(d.latitude, d.longitude)) continue;
 
@@ -279,7 +279,7 @@ export async function corroborateEvent(lat, lon, dateStr) {
 }
 
 /**
- * Batch corroboration — check multiple events at once.
+ * Batch corroboration, check multiple events at once.
  * Accepts array of { lat, lon, date, id } objects.
  * Returns object keyed by id with corroboration results.
  */
@@ -313,7 +313,7 @@ export async function corroborateBatch(events) {
       const acqTime = new Date(d.acq_date + 'T' + (d.acq_time || '0000').padStart(4, '0').slice(0, 2) + ':' + (d.acq_time || '0000').padStart(4, '0').slice(2) + ':00Z').getTime();
       if (isNaN(acqTime) || Math.abs(acqTime - eventTime) > windowMs) continue;
 
-      // Conflict zone check — skip detections in historically quiet areas
+      // Conflict zone check, skip detections in historically quiet areas
       if (!isConflictZone(d.latitude, d.longitude)) continue;
 
       detections++;

@@ -7,7 +7,7 @@ import { EVENT_TYPES } from '../utils/constants';
 import { InfoHint } from './InfoHint';
 
 /**
- * TimeChart — stacked bar chart of event frequency by 6-hour UTC window.
+ * TimeChart, stacked bar chart of event frequency by 6-hour UTC window.
  * Blueprint dark: panelBg (#1c2127) surface, Blueprint grid/axis colors.
  */
 export function TimeChart({ events }) {
@@ -88,7 +88,7 @@ export function TimeChart({ events }) {
           color:         '#9caabb',
           marginBottom:  '6px',
         }}>
-          {windowLabel} — {total} events
+          {windowLabel}, {total} events
         </div>
         {payload
           .filter((p) => p.value > 0)
@@ -177,7 +177,7 @@ export function TimeChart({ events }) {
           display:       'flex',
           alignItems:    'center',
         }}>
-          ACTIVITY — 6H WINDOWS
+          ACTIVITY, 6H WINDOWS
           <InfoHint
             text="Shows how many events happened over time, broken into 6-hour windows. Useful for spotting surges or quiet periods."
             position="below"
@@ -240,7 +240,7 @@ export function TimeChart({ events }) {
         </div>
       )}
 
-      {/* Chart — minHeight: 0 prevents Recharts from receiving a -1 height in flex containers */}
+      {/* Chart, minHeight: 0 prevents Recharts from receiving a -1 height in flex containers */}
       <div style={{ flex: 1, overflow: 'hidden', padding: '6px 0 0 0', minHeight: 0 }}>
         {isEmpty ? (
           <div style={{

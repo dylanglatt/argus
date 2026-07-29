@@ -11,7 +11,7 @@
  * Response:
  *   { sitrep: string, gdelt_events: number, ucdp_events: number, generated_at: number }
  *
- * Cached at the CDN level for 30 minutes — expensive to generate but
+ * Cached at the CDN level for 30 minutes, expensive to generate but
  * the situation doesn't change minute-to-minute.
  */
 
@@ -43,8 +43,8 @@ Write a concise 3-paragraph situation report (SITREP) covering:
 Rules:
 - Write in third person, present tense, past tense for specific events
 - Be specific: use actor names, location names, and fatality numbers where available
-- No hedging language like "it appears" or "may be" — write with analytic confidence
-- Do not use bullet points or headers — write flowing prose only
+- No hedging language like "it appears" or "may be", write with analytic confidence
+- Do not use bullet points or headers, write flowing prose only
 - Maximum 200 words total
 - If data is sparse, say so briefly and note what is known`;
 
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Kill switch — return a clear banner instead of calling Haiku.
+  // Kill switch, return a clear banner instead of calling Haiku.
   if (process.env.DISABLE_HAIKU === '1' || process.env.DISABLE_HAIKU === 'true') {
     res.status(200).json({
       sitrep:       'AI-generated sitrep is temporarily disabled. See event breakdown below for raw signal data.',
@@ -78,11 +78,11 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    res.status(503).json({ error: 'AI brief unavailable — ANTHROPIC_API_KEY not configured' });
+    res.status(503).json({ error: 'AI brief unavailable, ANTHROPIC_API_KEY not configured' });
     return;
   }
 
-  // Blob-level persistent cache — survives deploys and cold starts, unlike
+  // Blob-level persistent cache, survives deploys and cold starts, unlike
   // the CDN cache. Country click traffic during a demo won't re-spend.
   const cached = await getCachedSitrep(country);
   if (cached?.sitrep) {
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
   const spendToday = await getHaikuSpendToday();
   if (spendToday.usd >= cap) {
     res.status(200).json({
-      sitrep:       `AI sitrep unavailable — daily spend cap ($${cap}) reached. Resets at 00:00 UTC.`,
+      sitrep:       `AI sitrep unavailable, daily spend cap ($${cap}) reached. Resets at 00:00 UTC.`,
       gdelt_events: 0,
       ucdp_events:  0,
       generated_at: Date.now(),
@@ -125,7 +125,7 @@ export default async function handler(req, res) {
           .slice(0, 15)
           .map((e) => {
             const actors = [e.actor1, e.actor2].filter((a) => a && a !== 'Unknown').join(' vs. ') || 'Unknown actors';
-            return `[${e.event_date}] ${e.sub_event_type || e.event_type} — ${actors} in ${e.location}. ${e.notes || ''}`.slice(0, 200);
+            return `[${e.event_date}] ${e.sub_event_type || e.event_type}, ${actors} in ${e.location}. ${e.notes || ''}`.slice(0, 200);
           })
           .join('\n');
 
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
           .slice(0, 10)
           .map((e) => {
             const kia = e.fatalities_best > 0 ? ` (${e.fatalities_best} killed)` : '';
-            return `[${e.event_date}] ${e.ucdp_conflict || e.sub_event_type} — ${e.actor1} vs. ${e.actor2}${kia}. ${e.location}.`;
+            return `[${e.event_date}] ${e.ucdp_conflict || e.sub_event_type}, ${e.actor1} vs. ${e.actor2}${kia}. ${e.location}.`;
           })
           .join('\n');
 

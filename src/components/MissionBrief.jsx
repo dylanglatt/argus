@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * WelcomeOverlay — simple orientation screen shown once after boot.
+ * WelcomeOverlay, simple orientation screen shown once after boot.
  *
  * No jargon, no hover-to-reveal. Just a clean vertical list explaining
  * what each part of the screen does, readable by anyone.
@@ -15,19 +15,19 @@ const SECTIONS = [
   {
     icon:  '◉',
     title: 'Map',
-    desc:  'Each dot is a conflict event. Bigger dots are more severe. Colors show the type — red for battles, orange for explosions, and so on. Zoom in to see individual events.',
+    desc:  'Each dot is a conflict event. Bigger dots are more severe. Colors show the type, red for battles, orange for explosions, and so on. Zoom in to see individual events.',
     color: '#ec9a3c',
   },
   {
     icon:  '☰',
     title: 'Event Feed',
-    desc:  'A list of every event on the map. Click any row to see full details — who was involved, where it happened, and how severe it was.',
+    desc:  'A list of every event on the map. Click any row to see full details, who was involved, where it happened, and how severe it was.',
     color: '#bdadff',
   },
   {
     icon:  '▐',
     title: 'Filters',
-    desc:  'The left sidebar lets you narrow things down — by country, event type, date, or severity. Use it to focus on what matters to you.',
+    desc:  'The left sidebar lets you narrow things down, by country, event type, date, or severity. Use it to focus on what matters to you.',
     color: '#72ca9b',
   },
   {
@@ -45,7 +45,7 @@ const SECTIONS = [
   {
     icon:  '●',
     title: 'Stats',
-    desc:  'The header bar shows live numbers — total events, countries affected, and overall conflict tone. Look for the small ? icons to learn what each stat means.',
+    desc:  'The header bar shows live numbers, total events, countries affected, and overall conflict tone. Look for the small ? icons to learn what each stat means.',
     color: '#4c90f0',
   },
 ];

@@ -94,7 +94,7 @@ function normalizeEvent(row) {
   const lat = parseFloat(row.latitude);
   const lon = parseFloat(row.longitude);
 
-  // Skip events without coordinates (rare — UCDP is thorough)
+  // Skip events without coordinates (rare, UCDP is thorough)
   if (!lat || !lon || isNaN(lat) || isNaN(lon)) return null;
 
   const best  = parseInt(row.best,  10) || 0;
@@ -117,12 +117,12 @@ function normalizeEvent(row) {
   const fatalStr = best > 0
     ? `${best} killed (est. ${low}–${high})`
     : 'Casualties unconfirmed';
-  const notes = `${subType} — ${actorStr} in ${row.country || row.where_description || 'unknown location'}. ${fatalStr}. Conflict: ${row.conflict_name || 'unnamed'}.`;
+  const notes = `${subType}, ${actorStr} in ${row.country || row.where_description || 'unknown location'}. ${fatalStr}. Conflict: ${row.conflict_name || 'unnamed'}.`;
 
   // Use UCDP's source headline if available, else the conflict name
   const sourceUrl = row.source_article || null;
 
-  // hour_bucket for TimeChart compatibility (UCDP has no hour — default 0)
+  // hour_bucket for TimeChart compatibility (UCDP has no hour, default 0)
   const hour_bucket = 0;
 
   return {
@@ -154,15 +154,15 @@ function normalizeEvent(row) {
     fatalities_low:   low,
     fatalities_high:  high,
 
-    // Impact — derived from fatalities, not Goldstein
+    // Impact, derived from fatalities, not Goldstein
     impact_score:     fatalityToImpactScore(best),
     goldstein_scale:  -(fatalityToImpactScore(best)),  // Synthetic: negative = conflict
 
-    // Media signal fields (N/A for UCDP — use neutral defaults)
+    // Media signal fields (N/A for UCDP, use neutral defaults)
     num_mentions:  best > 0 ? Math.min(Math.ceil(best / 10) + 5, 200) : 10,
     num_sources:   1,
     num_articles:  1,
-    avg_tone:      -5,  // Negative — all UCDP events are inherently conflict
+    avg_tone:      -5,  // Negative, all UCDP events are inherently conflict
 
     // Narrative
     notes,
@@ -200,7 +200,7 @@ async function fetchPage(token, page, year, extraParams = '') {
 // ---------------------------------------------------------------------------
 export async function fetchUCDPEvents({ token, years = [2024], maxEvents = 2000 } = {}) {
   if (!token) {
-    console.warn('[ucdp] No API token — skipping UCDP fetch');
+    console.warn('[ucdp] No API token, skipping UCDP fetch');
     return [];
   }
 
@@ -233,7 +233,7 @@ export async function fetchUCDPEvents({ token, years = [2024], maxEvents = 2000 
           }
         }
 
-        // UCDP paginates — check if there's a next page
+        // UCDP paginates, check if there's a next page
         const nextPage = data.NextPageUrl || data.nextPageUrl || null;
         hasMore = Boolean(nextPage) && rows.length === PAGE_SIZE;
         page++;
@@ -252,6 +252,6 @@ export async function fetchUCDPEvents({ token, years = [2024], maxEvents = 2000 
     console.log(`[ucdp] Year ${year}: ${allEvents.length} total events so far`);
   }
 
-  console.log(`[ucdp] Done — ${allEvents.length} events normalized`);
+  console.log(`[ucdp] Done, ${allEvents.length} events normalized`);
   return allEvents;
 }

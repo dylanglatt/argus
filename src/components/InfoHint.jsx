@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 /**
- * InfoHint — contextual tooltip attached to any UI element.
+ * InfoHint, contextual tooltip attached to any UI element.
  *
  * Renders a small "?" badge. On hover (desktop) or tap (mobile), a compact
  * tooltip appears with a one-liner explanation. Tooltip auto-positions to
@@ -16,7 +16,7 @@ export function InfoHint({ text, position = 'above', width = 220 }) {
   const triggerRef = useRef(null);
   const tooltipRef = useRef(null);
 
-  // Reposition tooltip using fixed viewport coords — escapes all overflow:hidden parents
+  // Reposition tooltip using fixed viewport coords, escapes all overflow:hidden parents
   useEffect(() => {
     if (!show || !triggerRef.current || !tooltipRef.current) return;
 

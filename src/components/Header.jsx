@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { InfoHint } from './InfoHint';
 
 /**
- * Header — 50px fixed bar (Blueprint navbar height).
+ * Header, 50px fixed bar (Blueprint navbar height).
  *
  * Blueprint dark navbar:
- *   - Surface: panelBg (#1c2127) — distinct from page background
+ *   - Surface: panelBg (#1c2127), distinct from page background
  *   - Bottom border: border (#2f343c)
  *   - Top accent: conflict heat indicator (Blueprint intent colors)
  *
@@ -14,7 +14,7 @@ import { InfoHint } from './InfoHint';
  */
 export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGuide, isMobile }) {
   const [zuluTime,   setZuluTime]   = useState('');
-  const [refreshAge, setRefreshAge] = useState('—');
+  const [refreshAge, setRefreshAge] = useState('-');
   const [pulse,      setPulse]      = useState(true);
   const [showAbout,  setShowAbout]  = useState(false);
   const aboutRef = useRef(null);
@@ -33,7 +33,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGui
         const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
         setRefreshAge(elapsedMin > 0 ? `${elapsedMin}m ${elapsedSec}s ago` : `${elapsedSec}s ago`);
       } else {
-        setRefreshAge('—');
+        setRefreshAge('-');
       }
     };
     tick();
@@ -71,13 +71,13 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGui
   const accentColor =
     avgG < -3 ? '#e76a6e' :
     avgG <  0 ? '#ec9a3c' :
-                '#2f343c';   // neutral — just a border when calm
+                '#2f343c';   // neutral, just a border when calm
 
   return (
     <div style={{
       height:         '50px',
       minHeight:      '50px',
-      background:     '#1c2127',          // Blueprint panelBg — distinct from page
+      background:     '#1c2127',          // Blueprint panelBg, distinct from page
       borderBottom:   '1px solid #2f343c',
       borderTop:      `2px solid ${accentColor}`,
       display:        'flex',
@@ -132,7 +132,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGui
           </span>
         </div>
 
-        {/* Map focus toggle — Blueprint minimal button style */}
+        {/* Map focus toggle, Blueprint minimal button style */}
         <button
           onClick={onToggleMapFocus}
           title={mapFocus ? 'Show event feed' : 'Map focus mode'}
@@ -168,7 +168,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGui
           {mapFocus ? '⊠ MAP FOCUS' : '⊡ MAP FOCUS'}
         </button>
 
-        {/* Guide button — solid blue, primary help action */}
+        {/* Guide button, solid blue, primary help action */}
         <button
           onClick={onShowGuide}
           title="Open orientation guide"
@@ -271,11 +271,14 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGui
                 lineHeight:  1.6,
                 marginBottom:'12px',
               }}>
-                Real-time global conflict intelligence dashboard. Fuses live{' '}
-                <span style={{ color: '#f6f7f9', fontWeight: 600 }}>GDELT 2.0</span> NLP signals
-                with <span style={{ color: '#f6f7f9', fontWeight: 600 }}>UCDP GED</span> validated
-                data — event classification, severity scoring, Goldstein scale, and operational
-                trend analysis across active theaters.
+                Real-time conflict intelligence built on{' '}
+                <span style={{ color: '#f6f7f9', fontWeight: 600 }}>GDELT 2.0</span>, the live signal
+                layer. Each refresh, news events are structurally filtered, classified, deduplicated,
+                and severity-scored.{' '}
+                <span style={{ color: '#f6f7f9', fontWeight: 600 }}>UCDP GED</span> is a validated
+                historical baseline used for calibration and backtesting: it is annual and lags
+                roughly a year, so it is not a live source. Argus cross-references the two, it does
+                not merge them on a shared key.
               </div>
               <div style={{
                 display:     'flex',
@@ -326,7 +329,7 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGui
 
       {/* Right: stats */}
       {isMobile ? (
-        /* Mobile: condensed — just events + countries + tone */
+        /* Mobile: condensed, just events + countries + tone */
         <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
           <StatCell label="EVENTS"    value={(stats?.totalEvents ?? 0).toLocaleString()} valueColor="#f6f7f9" />
           <Divider />
@@ -343,10 +346,10 @@ export function Header({ stats, fetchedAt, mapFocus, onToggleMapFocus, onShowGui
           />
           <Divider />
           <StatCell
-            label="KIA (UCDP)"
-            value={stats?.totalFatalities > 0 ? (stats.totalFatalities).toLocaleString() : 'N/A'}
-            valueColor={stats?.totalFatalities > 0 ? '#e76a6e' : '#6a7585'}
-            tooltip="Estimated fatalities from verified sources. Shows N/A when no verified data is available for your filters."
+            label="SOURCES"
+            value={(stats?.totalSources ?? 0).toLocaleString()}
+            valueColor="#f6f7f9"
+            tooltip="Combined count of source outlets cited across the events in view. A rough measure of how much reporting backs the current feed."
           />
           <Divider />
           <StatCell label="COUNTRIES"    value={stats?.countriesAffected ?? 0}               valueColor="#f6f7f9" />
@@ -417,7 +420,7 @@ function Divider() {
     <div style={{
       width:      '1px',
       height:     '22px',
-      background: '#383e47',   // Blueprint dark-gray4 — inner divider
+      background: '#383e47',   // Blueprint dark-gray4, inner divider
       flexShrink: 0,
     }} />
   );

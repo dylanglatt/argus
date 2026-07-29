@@ -10,14 +10,14 @@
  *   - "TSA privatization plan"         → CAMEO 174 "Impose sanctions"
  *
  * GDELT's structural filters (QuadClass, root codes, Goldstein) are CAMEO-derived
- * and inherit these same misclassifications — they cannot fix this.
+ * and inherit these same misclassifications, they cannot fix this.
  *
  * Solution: Route events through Haiku for structured multi-dimensional scoring.
  * Returns JSON with five analyst dimensions (credibility, severity, specificity,
  * novelty, conflict_relevance), a 0–12 total score, tags, confidence, and a
  * one-line reasoning note. Stored as `ai_classification` on passing events.
  *
- * Auto-pass criteria (Haiku skipped — no API call needed):
+ * Auto-pass criteria (Haiku skipped, no API call needed):
  *   - Actor types include military/rebel/armed group (MIL, REB, SPY, UAF, etc.)
  *   - AND Goldstein ≤ -4 (extreme conflict scale)
  *   - AND num_sources ≥ 3 (corroborated across multiple outlets)
@@ -113,30 +113,68 @@ const ARMED_ACTOR_TYPES = new Set([
   'MIL',  // Military
   'REB',  // Rebel forces
   'SPY',  // Intelligence / secret service
-  'COP',  // Police / law enforcement (kept — state security)
+  'COP',  // Police / law enforcement (kept, state security)
   'UAF',  // Unidentified armed forces
-  'GOV',  // Government (kept — state-on-state actions)
+  'GOV',  // Government (kept, state-on-state actions)
   'IGO',  // Intergovernmental org (NATO, UN peacekeepers)
+]);
+
+// Kinetic armed-actor types that justify skipping Haiku. Deliberately narrower
+// than ARMED_ACTOR_TYPES: GOV, COP, and IGO are excluded from auto-pass because
+// they dominate the false-positive surface (diplomatic statements, domestic
+// policing, an IGO named in an op-ed). Those still flow, they just go through
+// the Haiku gate instead of skipping it.
+const AUTO_PASS_ARMED_TYPES = new Set([
+  'MIL',  // Military
+  'REB',  // Rebel forces
+  'UAF',  // Unidentified armed forces
+  'SPY',  // Intelligence / secret service
+]);
+
+// Countries where GDELT's kinetic misclassification of domestic news is high.
+// Events here never auto-pass; they must clear the Haiku gate. FIPS codes.
+const AUTO_PASS_EXCLUDE_COUNTRIES = new Set([
+  'US', 'CA', 'UK', 'GM', 'FR', 'IT', 'SP', 'NL', 'BE', 'AU', 'NZ',
+  'JA', 'SW', 'NO', 'DA', 'FI', 'EI', 'PO', 'EZ', 'PL', 'HU', 'SZ', 'AS',
+]);
+
+// Full country names for the stable-country auto-pass exclusion (normalized
+// events carry names, not FIPS codes).
+const STABLE_COUNTRY_NAMES = new Set([
+  'United States', 'Canada', 'United Kingdom', 'Germany', 'France', 'Italy',
+  'Spain', 'Netherlands', 'Belgium', 'Australia', 'New Zealand', 'Japan',
+  'Sweden', 'Norway', 'Denmark', 'Finland', 'Ireland', 'Portugal',
+  'Czech Republic', 'Poland', 'Hungary', 'Switzerland', 'Austria',
 ]);
 
 // ---------------------------------------------------------------------------
 // Determine if an event can auto-pass Haiku based on hard signals.
-// Criteria: armed actors + meaningful conflict score + multi-outlet coverage.
+// Criteria: a hard armed actor (MIL/REB/UAF/SPY) + extreme conflict score +
+// multi-outlet coverage, and NOT in a high-false-positive stable country.
 //
 // Threshold rationale:
 //   goldstein ≤ -4 covers CAMEO codes like "Use conventional military force"
-//   (190x) and "Fight" (193x) which are inherently kinetic — very few false
-//   positives leak through at this level.
+//   (190x) and "Fight" (193x) which are inherently kinetic.
 //   num_sources ≥ 3: two additional outlets beyond the origin article confirms
-//   the event was newsworthy enough to propagate beyond a single outlet.
+//   the event propagated beyond a single outlet.
+// The narrower actor set + stable-country exclusion closes the path that let
+// diplomatic / opinion events (e.g. an IGO named in a Kyiv op-ed) skip review.
 // ---------------------------------------------------------------------------
 function canAutoPass(event) {
-  const hasArmedActor =
-    ARMED_ACTOR_TYPES.has(event.actor1_type) ||
-    ARMED_ACTOR_TYPES.has(event.actor2_type);
+  const hasHardArmedActor =
+    AUTO_PASS_ARMED_TYPES.has(event.actor1_type) ||
+    AUTO_PASS_ARMED_TYPES.has(event.actor2_type);
+
+  // country here is the full name; map back is not needed, the pipeline still
+  // carries the FIPS code on the raw row, but normalized events expose the full
+  // country name, so we match on both the code (if present) and name set below.
+  const inStableCountry =
+    AUTO_PASS_EXCLUDE_COUNTRIES.has(event.country) ||
+    STABLE_COUNTRY_NAMES.has(event.country);
 
   return (
-    hasArmedActor &&
+    hasHardArmedActor &&
+    !inStableCountry &&
     event.goldstein_scale <= -4 &&
     event.num_sources >= 3
   );
@@ -165,7 +203,7 @@ function canAutoPass(event) {
 // ---------------------------------------------------------------------------
 const PROMPT_TEMPLATE = `You are a fusion analyst at a military intelligence organization classifying news events for an operational conflict dashboard.
 
-Score this event across five dimensions. Return ONLY valid JSON — no markdown, no explanation outside the JSON.
+Score this event across five dimensions. Return ONLY valid JSON, no markdown, no explanation outside the JSON.
 
 DIMENSIONS:
 1. credibility (0-2): 0=noise/rumor/single-outlet  1=plausible but weak  2=multiple outlets or concrete sourcing
@@ -192,20 +230,20 @@ ALWAYS INCLUDE even if small (these are escalation precursors):
 - Airspace violations or border incursions
 - Cross-border attacks of any scale
 
-GDELT data (secondary — may misclassify via NLP; treat as weak signal):
+GDELT data (secondary, may misclassify via NLP; treat as weak signal):
   Actor 1: {actor1} (type: {actor1_type})
   Actor 2: {actor2} (type: {actor2_type})
   Event: {event_type} / {sub_event_type}
   Location: {location}
   Source: {source_url}
 
-Article content (primary — determine what actually happened from this):
+Article content (primary, determine what actually happened from this):
 {article_context}
 
 Tags (choose all that apply): battle, explosion, airstrike, civilian_harm, troop_movement, weapons_transfer, border_incident, siege, assassination, hostage, riot, blockade, cross_border_attack, naval_incident, mass_casualty
 
 Return ONLY this JSON structure:
-{"include":BOOL,"score":INT,"breakdown":{"credibility":INT,"severity":INT,"specificity":INT,"novelty":INT,"conflict_relevance":INT},"reasoning":"ONE factual sentence from the article — specific actors, action, location, casualty count if known","tags":["tag1"],"confidence":"low"|"medium"|"high"}`;
+{"include":BOOL,"score":INT,"breakdown":{"credibility":INT,"severity":INT,"specificity":INT,"novelty":INT,"conflict_relevance":INT},"reasoning":"ONE factual sentence from the article, specific actors, action, location, casualty count if known","tags":["tag1"],"confidence":"low"|"medium"|"high"}`;
 
 // ---------------------------------------------------------------------------
 // Build the article context string injected into the Haiku prompt.
@@ -221,14 +259,14 @@ function buildArticleContext(snippet, slug) {
     return parts.join('\n');
   }
   if (slug) return `URL headline: ${slug}`;
-  return '(article content not available — classify from GDELT fields only)';
+  return '(article content not available, classify from GDELT fields only)';
 }
 
 // ---------------------------------------------------------------------------
 // Parse a structured JSON classification response from Haiku.
 //
 // The model is instructed to return raw JSON only. In practice it occasionally
-// wraps in markdown fences — we strip those first. If parsing fails entirely,
+// wraps in markdown fences, we strip those first. If parsing fails entirely,
 // we fall back to checking for a legacy YES/NO prefix so existing cached
 // responses degrade gracefully.
 // ---------------------------------------------------------------------------
@@ -270,15 +308,15 @@ function parseClassification(raw) {
 // Classify a single event with retry on rate limits.
 //
 // Failure strategy (two-tier):
-//   FAIL OPEN  — armed actor + Goldstein ≤ -4: these have already cleared the
+//   FAIL OPEN , armed actor + Goldstein ≤ -4: these have already cleared the
 //                structural filter gauntlet; a rate-limit hiccup shouldn't kill
 //                them. We accept a small risk of passing marginal events over
 //                silently discarding high-confidence kinetic incidents.
-//   FAIL CLOSED — everything else: we'd rather drop an ambiguous event than
+//   FAIL CLOSED, everything else: we'd rather drop an ambiguous event than
 //                 show noise on an operational dashboard.
 // ---------------------------------------------------------------------------
 async function classifyEvent(client, event, snippet = null, retries = 2, budget = null) {
-  // Budget short-circuit — caller maintains a running spend estimate and
+  // Budget short-circuit, caller maintains a running spend estimate and
   // skips further calls once the daily cap is hit. High-confidence events
   // still fail-open so a kinetic incident doesn't get silently dropped.
   if (budget && budget.spent >= budget.cap) {
@@ -343,17 +381,17 @@ async function classifyEvent(client, event, snippet = null, retries = 2, budget 
       if (isRateLimit && attempt < retries) {
         // Exponential backoff: 3s, 6s
         const wait = 3000 * (attempt + 1);
-        console.warn(`[haiku] Rate limited on ${event.event_id_cnty} — retrying in ${wait / 1000}s (attempt ${attempt + 1}/${retries})`);
+        console.warn(`[haiku] Rate limited on ${event.event_id_cnty}, retrying in ${wait / 1000}s (attempt ${attempt + 1}/${retries})`);
         await new Promise((r) => setTimeout(r, wait));
         continue;
       }
-      // Retries exhausted — apply two-tier failure strategy
+      // Retries exhausted, apply two-tier failure strategy
       if (isHighConfidence) {
         console.warn(`[haiku] ⚠ Fail-open (high-confidence) ${event.event_id_cnty}: ${err.message?.slice(0, 60)}`);
         return { pass: true, classification: null };
       }
       console.warn(`[haiku] Classification failed for ${event.event_id_cnty}: ${err.message?.slice(0, 80)}`);
-      return { pass: false, classification: null }; // Fail closed — reject ambiguous events
+      return { pass: false, classification: null }; // Fail closed, reject ambiguous events
     }
   }
   return { pass: false, classification: null };
@@ -369,24 +407,24 @@ async function classifyEvent(client, event, snippet = null, retries = 2, budget 
 // @returns {Promise<Array>} Filtered events
 // ---------------------------------------------------------------------------
 export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 150 } = {}) {
-  // Vercel serverless functions have a 30s timeout — the 10s inter-batch delay
+  // Vercel serverless functions have a 30s timeout, the 10s inter-batch delay
   // makes Haiku infeasible here. Structural CAMEO filtering already gates to
   // kinetic events only; CDN-level caching (s-maxage=3600) handles freshness.
   if (process.env.VERCEL) {
-    console.log('[haiku] Serverless env detected — skipping Haiku filter (CDN cache active)');
+    console.log('[haiku] Serverless env detected, skipping Haiku filter (CDN cache active)');
     return events;
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    console.warn('[haiku] ANTHROPIC_API_KEY not set — skipping Haiku filter');
+    console.warn('[haiku] ANTHROPIC_API_KEY not set, skipping Haiku filter');
     return events;
   }
 
-  // Kill switch — set DISABLE_HAIKU=1 to pass everything through without
+  // Kill switch, set DISABLE_HAIKU=1 to pass everything through without
   // any API calls. Preserves the dashboard's behavior (events still flow)
   // while guaranteeing zero Haiku spend for the run.
   if (process.env.DISABLE_HAIKU === '1' || process.env.DISABLE_HAIKU === 'true') {
-    console.warn('[haiku] DISABLE_HAIKU set — passing events through without classification');
+    console.warn('[haiku] DISABLE_HAIKU set, passing events through without classification');
     return events;
   }
 
@@ -395,7 +433,7 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 150 
   const spendToday  = await getHaikuSpendToday();
   if (spendToday.usd >= cap) {
     console.warn(
-      `[haiku] Daily spend cap hit ($${spendToday.usd.toFixed(4)} / $${cap}) — passing events through. ` +
+      `[haiku] Daily spend cap hit ($${spendToday.usd.toFixed(4)} / $${cap}), passing events through. ` +
       `Raise HAIKU_DAILY_BUDGET_USD or wait until tomorrow.`
     );
     return events;
@@ -448,7 +486,7 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 150 
     toReview.push(event);
   }
 
-  // Events beyond maxReview are DROPPED, not passed through — we'd rather have
+  // Events beyond maxReview are DROPPED, not passed through, we'd rather have
   // fewer high-confidence events than silently pass unreviewed noise.
   const reviewSlice = toReview.slice(0, maxReview);
   const dropped     = toReview.length - reviewSlice.length;
@@ -466,7 +504,7 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 150 
     const batch = reviewSlice.slice(i, i + batchSize);
 
     // Fetch article snippets in parallel with a per-request timeout.
-    // Failures return null and fall back to URL slug extraction — never blocks.
+    // Failures return null and fall back to URL slug extraction, never blocks.
     const snippets = await Promise.all(batch.map((e) => fetchArticleSnippet(e.source_url)));
 
     const results = await Promise.all(
@@ -500,7 +538,7 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 150 
         console.log(
           `[haiku] ✗ [${ev.event_type}/${ev.sub_event_type}]` +
           ` actors: ${ev.actor1}(${ev.actor1_type}) vs ${ev.actor2}(${ev.actor2_type})` +
-          ` score=${classification?.score ?? '?'} — ${(classification?.reasoning || ev.notes)?.slice(0, 80)}`
+          ` score=${classification?.score ?? '?'}, ${(classification?.reasoning || ev.notes)?.slice(0, 80)}`
         );
       }
     }
@@ -530,7 +568,7 @@ export async function applyHaikuFilter(events, { batchSize = 8, maxReview = 150 
   }
 
   console.log(
-    `[haiku] Done — ${cacheHits} from cache | ${passed.length} new passes | ${filtered} filtered` +
+    `[haiku] Done, ${cacheHits} from cache | ${passed.length} new passes | ${filtered} filtered` +
     (cacheNew > 0 ? ` | ${cacheNew} new entries saved to cache` : '')
   );
 

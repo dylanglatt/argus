@@ -15,16 +15,16 @@ const BLOB_KEY             = 'events.json';
 const HAIKU_CACHE_KEY      = 'haiku-classifications.json';
 const HAIKU_CACHE_MAX_DAYS = 8; // prune entries older than this (matches GDELT 7-day window + buffer)
 const SITREP_CACHE_KEY     = 'sitrep-cache.json';
-const SITREP_TTL_MS        = 24 * 60 * 60 * 1000; // sitreps are narrative summaries — 24h is plenty
+const SITREP_TTL_MS        = 24 * 60 * 60 * 1000; // sitreps are narrative summaries, 24h is plenty
 const SPEND_KEY            = 'haiku-spend.json';
 
 // Hard per-day spend ceiling for Haiku (USD). Argus is a portfolio/demo
-// project — any run that trips this cap has a bug, not a legitimate need.
+// project, any run that trips this cap has a bug, not a legitimate need.
 // Override via env if you intentionally want to burn more during a demo.
 const DAILY_BUDGET_USD     = Number(process.env.HAIKU_DAILY_BUDGET_USD || 0.05);
 
 // Haiku 4.5 pricing (per million tokens). Used to estimate spend per call.
-// If pricing changes we'll under/over-estimate slightly — fine for a safety cap.
+// If pricing changes we'll under/over-estimate slightly, fine for a safety cap.
 const HAIKU_INPUT_PER_MTOK  = 1.0;
 const HAIKU_OUTPUT_PER_MTOK = 5.0;
 
@@ -44,7 +44,7 @@ export async function getEventsFromBlob() {
   if (!isBlobConfigured()) return null;
 
   try {
-    // head() requires a full blob URL, not a pathname — use list() to resolve
+    // head() requires a full blob URL, not a pathname, use list() to resolve
     // the pathname to its full public URL before fetching.
     const { blobs } = await list({ prefix: BLOB_KEY, limit: 1 });
     if (!blobs[0]?.url) return null;
@@ -65,10 +65,10 @@ export async function getEventsFromBlob() {
       return null;
     }
 
-    // Check staleness — reject data older than 2 hours
+    // Check staleness, reject data older than 2 hours
     const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
     if (payload.fetchedAt && Date.now() - payload.fetchedAt > TWO_HOURS_MS) {
-      console.warn('[blobCache] blob data is older than 2 hours — treating as stale');
+      console.warn('[blobCache] blob data is older than 2 hours, treating as stale');
       return null;
     }
 
@@ -134,7 +134,7 @@ export async function saveClassificationCache(cache) {
 }
 
 // ---------------------------------------------------------------------------
-// Sitrep cache — persistent per-country cache for /api/brief/:country
+// Sitrep cache, persistent per-country cache for /api/brief/:country
 // CDN caching alone resets on every cold start; blob-level cache survives
 // deploys, cold starts, and region swaps. Entries TTL'd at 24h.
 // ---------------------------------------------------------------------------
@@ -193,7 +193,7 @@ export async function saveCachedSitrep(country, entry) {
 // Daily-spend ledger for Haiku. Returns { usd, date } for the current UTC day.
 // Any call that would push today's spend past DAILY_BUDGET_USD should be
 // skipped by the caller. This is a cost *safety net*, not the primary lever
-// — the primary lever is the daily (not 15-min) refresh cadence.
+//, the primary lever is the daily (not 15-min) refresh cadence.
 // ---------------------------------------------------------------------------
 function utcDateStr() {
   return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
@@ -244,7 +244,7 @@ export function getDailyBudgetUsd() {
  */
 export async function setEventsInBlob(events, fetchedAt) {
   if (!isBlobConfigured()) {
-    console.warn('[blobCache] BLOB_READ_WRITE_TOKEN not set — skipping write');
+    console.warn('[blobCache] BLOB_READ_WRITE_TOKEN not set, skipping write');
     return;
   }
 

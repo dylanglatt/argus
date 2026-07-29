@@ -47,7 +47,7 @@ export function EscalationBanner({ events, onSelectCountry }) {
     <div style={{
       height:       '28px',
       minHeight:    '28px',
-      background:   '#2a1518',          // dark red — Blueprint danger surface tint
+      background:   '#2a1518',          // dark red, Blueprint danger surface tint
       borderBottom: '1px solid #e76a6e30',
       display:      'flex',
       alignItems:   'center',

@@ -34,7 +34,7 @@
   }
 
   /*
-   * Scrollbars — Blueprint dark theme style.
+   * Scrollbars, Blueprint dark theme style.
    * Thin, low-contrast thumb against an invisible track.
    */
   ::-webkit-scrollbar {
@@ -59,7 +59,7 @@
   }
 
   /*
-   * Range input — Blueprint accent color.
+   * Range input, Blueprint accent color.
    * Track uses borderInner, thumb uses blue accent.
    */
   input[type="range"] {
@@ -85,7 +85,7 @@
   }
 
   /*
-   * Mapbox popup — Blueprint dark panel style.
+   * Mapbox popup, Blueprint dark panel style.
    * panelBg background, border color, 2px radius to match component style.
    */
   .mapboxgl-popup-content {
@@ -110,7 +110,7 @@
     color: #f6f7f9 !important;
   }
 
-  /* Mapbox navigation controls — Blueprint dark style */
+  /* Mapbox navigation controls, Blueprint dark style */
   .mapboxgl-ctrl-group {
     background: #1c2127 !important;
     border: 1px solid #2f343c !important;

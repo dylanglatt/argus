@@ -6,11 +6,11 @@
  * the cleaned set to Vercel Blob for serving by api/events.js.
  *
  * Sources:
- *   1. GDELT 2.0 — near real-time NLP-extracted news signals (last 7 days)
+ *   1. GDELT 2.0, near real-time NLP-extracted news signals (last 7 days)
  *      Haiku-filtered for kinetic conflict only.
  *
- *   2. UCDP GED — validated conflict research data with fatality estimates.
- *      Expert-coded by Uppsala University researchers. No Haiku needed —
+ *   2. UCDP GED, validated conflict research data with fatality estimates.
+ *      Expert-coded by Uppsala University researchers. No Haiku needed -
  *      UCDP data is already gold-standard quality.
  *
  * Merge strategy:
@@ -21,9 +21,9 @@
  *   - Final set sorted by date desc, capped at 800 events.
  *
  * Requires env vars:
- *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
- *   ANTHROPIC_API_KEY      — for Haiku classification of GDELT events
- *   UCDP_API_TOKEN         — UCDP API access token
+ *   BLOB_READ_WRITE_TOKEN , Vercel Blob token
+ *   ANTHROPIC_API_KEY     , for Haiku classification of GDELT events
+ *   UCDP_API_TOKEN        , UCDP API access token
  */
 
 import 'dotenv/config';
@@ -34,7 +34,7 @@ import { setEventsInBlob, isBlobConfigured } from '../server/blobCache.js';
 
 async function main() {
   if (!isBlobConfigured()) {
-    console.error('[refresh] BLOB_READ_WRITE_TOKEN is not set — cannot write to Blob. Aborting.');
+    console.error('[refresh] BLOB_READ_WRITE_TOKEN is not set, cannot write to Blob. Aborting.');
     process.exit(1);
   }
 
@@ -63,7 +63,7 @@ async function main() {
   let ucdpEvents  = [];
 
   if (!ucdpToken) {
-    console.warn('[refresh] UCDP_API_TOKEN not set — skipping UCDP fetch');
+    console.warn('[refresh] UCDP_API_TOKEN not set, skipping UCDP fetch');
   } else {
     try {
       // Fetch 2024 data (most complete recent year) + 2023 for historical depth.
@@ -96,7 +96,7 @@ async function main() {
     return 0;
   });
 
-  // Cap at 800 — keeps response payload manageable while showing dense coverage
+  // Cap at 800, keeps response payload manageable while showing dense coverage
   const final = merged.slice(0, 800);
 
   const gdeltCount = final.filter((e) => e.source !== 'ucdp').length;
@@ -107,7 +107,7 @@ async function main() {
   const fetchedAt = Date.now();
   await setEventsInBlob(final, fetchedAt);
 
-  console.log(`[refresh] Blob updated — ${final.length} events written at ${new Date(fetchedAt).toISOString()}`);
+  console.log(`[refresh] Blob updated, ${final.length} events written at ${new Date(fetchedAt).toISOString()}`);
 }
 
 main().catch((err) => {

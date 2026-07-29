@@ -17,7 +17,7 @@ const LABEL_STYLE = {
 
 const SECTION_GAP = { marginBottom: '20px' };
 
-// Blueprint dark input style — elevated surface, visible border
+// Blueprint dark input style, elevated surface, visible border
 const INPUT_STYLE = {
   width:        '100%',
   boxSizing:    'border-box',
@@ -33,7 +33,7 @@ const INPUT_STYLE = {
 };
 
 /**
- * FilterPanel — 280px left panel.
+ * FilterPanel, 280px left panel.
  * Blueprint dark: panelBg surface (#1c2127), elevatedBg inputs (#252a31).
  *
  * Sections:
@@ -244,7 +244,7 @@ export function FilterPanel({
 
         <div style={{ borderTop: '1px solid #383e47', marginBottom: '20px' }} />
 
-        {/* Data source filter — GDELT vs UCDP */}
+        {/* Data source filter, GDELT vs UCDP */}
         <div style={SECTION_GAP}>
           <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>
             DATA SOURCE
@@ -313,7 +313,7 @@ export function FilterPanel({
 
         <div style={{ borderTop: '1px solid #383e47', marginBottom: '20px' }} />
 
-        {/* Region focus — Blueprint multi-select with pill tags */}
+        {/* Region focus, Blueprint multi-select with pill tags */}
         <div style={SECTION_GAP} ref={dropdownRef}>
           <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>
             REGION FOCUS
@@ -498,7 +498,7 @@ export function FilterPanel({
           onSearch={(q) => onFilterChange({ ...filters, searchQuery: q })}
         />
 
-        {/* Reset — Blueprint minimal button */}
+        {/* Reset, Blueprint minimal button */}
         <button
           onClick={handleReset}
           style={{
@@ -531,10 +531,10 @@ export function FilterPanel({
           RESET ALL FILTERS
         </button>
 
-        {/* Source bias — Blueprint callout pattern */}
+        {/* Source bias, Blueprint callout pattern */}
         <div style={{
           border:       '1px solid #383e47',
-          borderLeft:   '3px solid #fbb360',    // Blueprint orange5 — warning callout
+          borderLeft:   '3px solid #fbb360',    // Blueprint orange5, warning callout
           background:   '#252a31',
           borderRadius: '2px',
         }}>

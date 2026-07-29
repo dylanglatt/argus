@@ -40,7 +40,7 @@ export const mockEvents = [
     num_articles: 89,
     avg_tone: -6.4,
     source_url: 'https://www.reuters.com',
-    notes: 'Fight with small arms — Military Forces of Ukraine vs. Military Forces of Russia in Avdiivka, Donetsk, Ukraine. Reported across 142 mention(s) from 38 outlets. Goldstein: -8.0.',
+    notes: 'Fight with small arms, Military Forces of Ukraine vs. Military Forces of Russia in Avdiivka, Donetsk, Ukraine. Reported across 142 mention(s) from 38 outlets. Goldstein: -8.0.',
   },
   {
     event_id_cnty: 'MOCK-002',
@@ -61,7 +61,7 @@ export const mockEvents = [
     num_articles: 201,
     avg_tone: -8.2,
     source_url: 'https://www.bbc.com',
-    notes: 'Conduct airstrike — Military Forces of Israel vs. Hamas in Gaza City, Gaza Strip. Reported across 310 mention(s) from 74 outlets. Goldstein: -9.0.',
+    notes: 'Conduct airstrike, Military Forces of Israel vs. Hamas in Gaza City, Gaza Strip. Reported across 310 mention(s) from 74 outlets. Goldstein: -9.0.',
   },
   {
     event_id_cnty: 'MOCK-003',
@@ -82,7 +82,7 @@ export const mockEvents = [
     num_articles: 52,
     avg_tone: -7.1,
     source_url: 'https://www.aljazeera.com',
-    notes: 'Conduct bombing — Al-Shabaab vs. Civilians in Mogadishu, Banaadir, Somalia. Reported across 88 mention(s) from 21 outlets. Goldstein: -9.5.',
+    notes: 'Conduct bombing, Al-Shabaab vs. Civilians in Mogadishu, Banaadir, Somalia. Reported across 88 mention(s) from 21 outlets. Goldstein: -9.5.',
   },
   {
     event_id_cnty: 'MOCK-004',
@@ -103,7 +103,7 @@ export const mockEvents = [
     num_articles: 30,
     avg_tone: -3.2,
     source_url: 'https://www.apnews.com',
-    notes: 'Demonstrate or rally — Opposition Group vs. Government of Venezuela in Caracas, Venezuela. Reported across 45 mention(s) from 14 outlets. Goldstein: -3.4.',
+    notes: 'Demonstrate or rally, Opposition Group vs. Government of Venezuela in Caracas, Venezuela. Reported across 45 mention(s) from 14 outlets. Goldstein: -3.4.',
   },
   {
     event_id_cnty: 'MOCK-005',
@@ -124,7 +124,7 @@ export const mockEvents = [
     num_articles: 61,
     avg_tone: -5.9,
     source_url: 'https://www.reuters.com',
-    notes: 'Employ air, naval, or artillery force — Houthi Forces vs. Military Forces of Saudi Arabia in Saada, Yemen. Reported across 97 mention(s) from 29 outlets. Goldstein: -8.0.',
+    notes: 'Employ air, naval, or artillery force, Houthi Forces vs. Military Forces of Saudi Arabia in Saada, Yemen. Reported across 97 mention(s) from 29 outlets. Goldstein: -8.0.',
   },
   {
     event_id_cnty: 'MOCK-006',
@@ -145,7 +145,7 @@ export const mockEvents = [
     num_articles: 147,
     avg_tone: -4.8,
     source_url: 'https://www.bbc.com',
-    notes: 'Mobilize or increase armed forces — Military Forces of China vs. Military Forces of Taiwan in Taipei, Taiwan. Reported across 213 mention(s) from 56 outlets. Goldstein: -5.0.',
+    notes: 'Mobilize or increase armed forces, Military Forces of China vs. Military Forces of Taiwan in Taipei, Taiwan. Reported across 213 mention(s) from 56 outlets. Goldstein: -5.0.',
   },
   {
     event_id_cnty: 'MOCK-007',
@@ -166,7 +166,7 @@ export const mockEvents = [
     num_articles: 34,
     avg_tone: -6.7,
     source_url: 'https://www.aljazeera.com',
-    notes: 'Abduct, hijack, or take hostage — Boko Haram vs. Civilians in Maiduguri, Borno, Nigeria. Reported across 53 mention(s) from 15 outlets. Goldstein: -9.0.',
+    notes: 'Abduct, hijack, or take hostage, Boko Haram vs. Civilians in Maiduguri, Borno, Nigeria. Reported across 53 mention(s) from 15 outlets. Goldstein: -9.0.',
   },
   {
     event_id_cnty: 'MOCK-008',
@@ -187,7 +187,7 @@ export const mockEvents = [
     num_articles: 45,
     avg_tone: -5.2,
     source_url: 'https://www.apnews.com',
-    notes: 'Protest violently, riot — Protesters vs. Police Forces of Sudan in Khartoum, Sudan. Reported across 71 mention(s) from 19 outlets. Goldstein: -6.0.',
+    notes: 'Protest violently, riot, Protesters vs. Police Forces of Sudan in Khartoum, Sudan. Reported across 71 mention(s) from 19 outlets. Goldstein: -6.0.',
   },
   {
     event_id_cnty: 'MOCK-009',
@@ -208,7 +208,7 @@ export const mockEvents = [
     num_articles: 39,
     avg_tone: -6.1,
     source_url: 'https://www.reuters.com',
-    notes: 'Fight — Junta Forces Myanmar vs. Kachin Independence Army in Myitkyina, Kachin, Myanmar. Reported across 62 mention(s) from 17 outlets. Goldstein: -8.0.',
+    notes: 'Fight, Junta Forces Myanmar vs. Kachin Independence Army in Myitkyina, Kachin, Myanmar. Reported across 62 mention(s) from 17 outlets. Goldstein: -8.0.',
   },
   {
     event_id_cnty: 'MOCK-010',
@@ -229,7 +229,7 @@ export const mockEvents = [
     num_articles: 76,
     avg_tone: -7.4,
     source_url: 'https://www.bbc.com',
-    notes: 'Conduct IED / roadside bombing — Taliban vs. Military Forces of Afghanistan in Kabul, Afghanistan. Reported across 119 mention(s) from 33 outlets. Goldstein: -9.0.',
+    notes: 'Conduct IED / roadside bombing, Taliban vs. Military Forces of Afghanistan in Kabul, Afghanistan. Reported across 119 mention(s) from 33 outlets. Goldstein: -9.0.',
   },
   {
     event_id_cnty: 'MOCK-011',
@@ -250,7 +250,7 @@ export const mockEvents = [
     num_articles: 66,
     avg_tone: -6.8,
     source_url: 'https://www.aljazeera.com',
-    notes: 'Fight with small arms — Rapid Support Forces vs. Sudanese Armed Forces in El Fasher, Darfur, Sudan. Reported across 103 mention(s) from 27 outlets. Goldstein: -8.0.',
+    notes: 'Fight with small arms, Rapid Support Forces vs. Sudanese Armed Forces in El Fasher, Darfur, Sudan. Reported across 103 mention(s) from 27 outlets. Goldstein: -8.0.',
   },
   {
     event_id_cnty: 'MOCK-012',
@@ -271,7 +271,7 @@ export const mockEvents = [
     num_articles: 122,
     avg_tone: -4.3,
     source_url: 'https://www.reuters.com',
-    notes: 'Threaten with military force — Government of North Korea vs. Government of United States in Pyongyang, North Korea. Reported across 188 mention(s) from 51 outlets. Goldstein: -5.0.',
+    notes: 'Threaten with military force, Government of North Korea vs. Government of United States in Pyongyang, North Korea. Reported across 188 mention(s) from 51 outlets. Goldstein: -5.0.',
   },
   {
     event_id_cnty: 'MOCK-013',
@@ -292,7 +292,7 @@ export const mockEvents = [
     num_articles: 48,
     avg_tone: -8.6,
     source_url: 'https://www.apnews.com',
-    notes: 'Engage in mass killings — Wagner Group vs. Civilians in Mopti, Mali. Reported across 76 mention(s) from 22 outlets. Goldstein: -10.0.',
+    notes: 'Engage in mass killings, Wagner Group vs. Civilians in Mopti, Mali. Reported across 76 mention(s) from 22 outlets. Goldstein: -10.0.',
   },
   {
     event_id_cnty: 'MOCK-014',
@@ -313,7 +313,7 @@ export const mockEvents = [
     num_articles: 24,
     avg_tone: -2.9,
     source_url: 'https://www.bbc.com',
-    notes: 'Demonstrate or rally — Students vs. Government of Bangladesh in Dhaka, Bangladesh. Reported across 38 mention(s) from 12 outlets. Goldstein: -3.4.',
+    notes: 'Demonstrate or rally, Students vs. Government of Bangladesh in Dhaka, Bangladesh. Reported across 38 mention(s) from 12 outlets. Goldstein: -3.4.',
   },
   {
     event_id_cnty: 'MOCK-015',
@@ -334,7 +334,7 @@ export const mockEvents = [
     num_articles: 108,
     avg_tone: -7.8,
     source_url: 'https://www.reuters.com',
-    notes: 'Conduct artillery / rocket strike — Military Forces of Russia vs. Civilians in Kharkiv, Ukraine. Reported across 167 mention(s) from 44 outlets. Goldstein: -9.0.',
+    notes: 'Conduct artillery / rocket strike, Military Forces of Russia vs. Civilians in Kharkiv, Ukraine. Reported across 167 mention(s) from 44 outlets. Goldstein: -9.0.',
   },
   {
     event_id_cnty: 'MOCK-016',
@@ -355,7 +355,7 @@ export const mockEvents = [
     num_articles: 28,
     avg_tone: -5.7,
     source_url: 'https://www.aljazeera.com',
-    notes: 'Fight — JNIM vs. Military Forces of Burkina Faso in Dori, Sahel, Burkina Faso. Reported across 44 mention(s) from 13 outlets. Goldstein: -7.5.',
+    notes: 'Fight, JNIM vs. Military Forces of Burkina Faso in Dori, Sahel, Burkina Faso. Reported across 44 mention(s) from 13 outlets. Goldstein: -7.5.',
   },
   {
     event_id_cnty: 'MOCK-017',
@@ -376,7 +376,7 @@ export const mockEvents = [
     num_articles: 173,
     avg_tone: -5.1,
     source_url: 'https://www.bbc.com',
-    notes: 'Increase military alert status — Military Forces of Iran vs. Military Forces of Israel in Tehran, Iran. Reported across 256 mention(s) from 66 outlets. Goldstein: -5.0.',
+    notes: 'Increase military alert status, Military Forces of Iran vs. Military Forces of Israel in Tehran, Iran. Reported across 256 mention(s) from 66 outlets. Goldstein: -5.0.',
   },
   {
     event_id_cnty: 'MOCK-018',
@@ -397,7 +397,7 @@ export const mockEvents = [
     num_articles: 19,
     avg_tone: -5.4,
     source_url: 'https://www.apnews.com',
-    notes: 'Physically assault — FARC Dissident Groups vs. Civilians in Popayan, Cauca, Colombia. Reported across 31 mention(s) from 9 outlets. Goldstein: -7.0.',
+    notes: 'Physically assault, FARC Dissident Groups vs. Civilians in Popayan, Cauca, Colombia. Reported across 31 mention(s) from 9 outlets. Goldstein: -7.0.',
   },
   {
     event_id_cnty: 'MOCK-019',
@@ -418,7 +418,7 @@ export const mockEvents = [
     num_articles: 88,
     avg_tone: -7.9,
     source_url: 'https://www.reuters.com',
-    notes: 'Conduct suicide bombing — Islamic State Iraq and Syria vs. Civilians in Baghdad, Iraq. Reported across 134 mention(s) from 37 outlets. Goldstein: -9.0.',
+    notes: 'Conduct suicide bombing, Islamic State Iraq and Syria vs. Civilians in Baghdad, Iraq. Reported across 134 mention(s) from 37 outlets. Goldstein: -9.0.',
   },
   {
     event_id_cnty: 'MOCK-020',
@@ -439,7 +439,7 @@ export const mockEvents = [
     num_articles: 37,
     avg_tone: -4.9,
     source_url: 'https://www.bbc.com',
-    notes: 'Protest violently, riot — Protesters vs. Police Forces of Ethiopia in Addis Ababa, Ethiopia. Reported across 59 mention(s) from 16 outlets. Goldstein: -6.0.',
+    notes: 'Protest violently, riot, Protesters vs. Police Forces of Ethiopia in Addis Ababa, Ethiopia. Reported across 59 mention(s) from 16 outlets. Goldstein: -6.0.',
   },
   {
     event_id_cnty: 'MOCK-021',
@@ -460,7 +460,7 @@ export const mockEvents = [
     num_articles: 53,
     avg_tone: -6.5,
     source_url: 'https://www.aljazeera.com',
-    notes: 'Conduct airstrike — Military Forces of Syria vs. Rebel Groups in Idlib, Syria. Reported across 84 mention(s) from 23 outlets. Goldstein: -8.0.',
+    notes: 'Conduct airstrike, Military Forces of Syria vs. Rebel Groups in Idlib, Syria. Reported across 84 mention(s) from 23 outlets. Goldstein: -8.0.',
   },
   {
     event_id_cnty: 'MOCK-022',
@@ -481,7 +481,7 @@ export const mockEvents = [
     num_articles: 72,
     avg_tone: -4.6,
     source_url: 'https://www.reuters.com',
-    notes: 'Impose blockade, restrict movement — Military Forces of Russia vs. Government of Ukraine in Odessa, Ukraine. Reported across 112 mention(s) from 31 outlets. Goldstein: -6.0.',
+    notes: 'Impose blockade, restrict movement, Military Forces of Russia vs. Government of Ukraine in Odessa, Ukraine. Reported across 112 mention(s) from 31 outlets. Goldstein: -6.0.',
   },
   {
     event_id_cnty: 'MOCK-023',
@@ -502,7 +502,7 @@ export const mockEvents = [
     num_articles: 41,
     avg_tone: -7.2,
     source_url: 'https://www.apnews.com',
-    notes: 'Engage in mass expulsion — Arakan Army vs. Civilians in Sittwe, Rakhine, Myanmar. Reported across 67 mention(s) from 18 outlets. Goldstein: -8.5.',
+    notes: 'Engage in mass expulsion, Arakan Army vs. Civilians in Sittwe, Rakhine, Myanmar. Reported across 67 mention(s) from 18 outlets. Goldstein: -8.5.',
   },
   {
     event_id_cnty: 'MOCK-024',
@@ -523,7 +523,7 @@ export const mockEvents = [
     num_articles: 57,
     avg_tone: -2.1,
     source_url: 'https://www.bbc.com',
-    notes: 'Conduct strike or boycott — Labor Unions vs. Government of France in Paris, France. Reported across 89 mention(s) from 25 outlets. Goldstein: -2.0.',
+    notes: 'Conduct strike or boycott, Labor Unions vs. Government of France in Paris, France. Reported across 89 mention(s) from 25 outlets. Goldstein: -2.0.',
   },
   {
     event_id_cnty: 'MOCK-025',
@@ -544,6 +544,6 @@ export const mockEvents = [
     num_articles: 30,
     avg_tone: -6.3,
     source_url: 'https://www.aljazeera.com',
-    notes: 'Fight — ISWAP vs. Nigerian Army in Baga, Borno, Nigeria. Reported across 48 mention(s) from 14 outlets. Goldstein: -8.0.',
+    notes: 'Fight, ISWAP vs. Nigerian Army in Baga, Borno, Nigeria. Reported across 48 mention(s) from 14 outlets. Goldstein: -8.0.',
   },
 ];

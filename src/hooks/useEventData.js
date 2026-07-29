@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { resolveActor, isPlausibleConflict } from '../utils/actors';
+import { scoreEvent } from '../utils/scoring';
 
 /**
  * useEventData
@@ -42,12 +44,26 @@ export function useEventData(filters = {}) {
         const res = await fetch('/api/events?limit=1000');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        const loadedEvents = json.data || [];
+        const confirmed = new Set((json.confirmedIds || []).map(String));
+        // Client-side relevance safety gate: strip domestic false positives
+        // that slip through the server pipeline (e.g. stable-country events
+        // with no resolvable actor and weak corroboration). Active conflict
+        // zones and analyst-confirmed events are never dropped.
+        const loadedEvents = (json.data || [])
+          .filter((e) =>
+            isPlausibleConflict(e, { confirmed: confirmed.has(String(e.event_id_cnty)) })
+          )
+          // Recompute severity client-side so the score is transparent and
+          // consistent across every data path. See utils/scoring.js.
+          .map((e) => {
+            const { score, breakdown } = scoreEvent(e);
+            return { ...e, impact_score: score, severity_breakdown: breakdown };
+          });
         setEvents(loadedEvents);
         setDataSource(json.source || 'gdelt');
         setFetchedAt(json.fetchedAt || null);
         setDismissedIds(new Set((json.dismissedIds  || []).map(String)));
-        setConfirmedIds(new Set((json.confirmedIds  || []).map(String)));
+        setConfirmedIds(confirmed);
         setError(null);
 
         // Batch corroboration for eligible events (Explosions/Remote violence, Battles)
@@ -73,7 +89,10 @@ export function useEventData(filters = {}) {
               setEvents((prev) => prev.map((e) => {
                 const r = results[e.event_id_cnty];
                 if (r && r.corroborated) {
-                  return { ...e, satellite_corroborated: true, firms_detections: r.detections, firms_max_frp: r.maxFRP, firms_nearest_km: r.nearestKm };
+                  const merged = { ...e, satellite_corroborated: true, firms_detections: r.detections, firms_max_frp: r.maxFRP, firms_nearest_km: r.nearestKm };
+                  // Rescore so the satellite-corroboration boost is reflected.
+                  const { score, breakdown } = scoreEvent(merged);
+                  return { ...merged, impact_score: score, severity_breakdown: breakdown };
                 }
                 return e;
               }));
@@ -163,7 +182,7 @@ export function useEventData(filters = {}) {
     const totalSources = filteredEvents.reduce((sum, e) => sum + (e.num_sources || 0), 0);
     const totalMentions = filteredEvents.reduce((sum, e) => sum + (e.num_mentions || 0), 0);
 
-    // Total fatalities — sum of UCDP best estimates (GDELT events have no fatality data)
+    // Total fatalities, sum of UCDP best estimates (GDELT events have no fatality data)
     const totalFatalities = filteredEvents.reduce((sum, e) => sum + (e.fatalities_best || 0), 0);
 
     // Average Goldstein scale across filtered events (negative = more conflict)
@@ -172,11 +191,12 @@ export function useEventData(filters = {}) {
         ? filteredEvents.reduce((sum, e) => sum + (e.goldstein_scale || 0), 0) / filteredEvents.length
         : 0;
 
-    // Most active actor by frequency
+    // Most active actor by frequency, counts only positively resolved actors
+    // so the metric never surfaces a generic noun ("Gunman") or a place name.
     const actorCounts = {};
     filteredEvents.forEach((e) => {
-      if (e.actor1 && e.actor1 !== 'Unknown') actorCounts[e.actor1] = (actorCounts[e.actor1] || 0) + 1;
-      if (e.actor2 && e.actor2 !== 'Unknown') actorCounts[e.actor2] = (actorCounts[e.actor2] || 0) + 1;
+      const actor = resolveActor(e);
+      if (actor) actorCounts[actor] = (actorCounts[actor] || 0) + 1;
     });
     const mostActiveActor = Object.entries(actorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
@@ -219,7 +239,7 @@ export function useEventData(filters = {}) {
 
   // ---------------------------------------------------------------------------
   // Analyst feedback: dismiss an event as noise, or confirm as valid signal.
-  // Both are optimistic — UI updates immediately, then backend is notified.
+  // Both are optimistic, UI updates immediately, then backend is notified.
   // ---------------------------------------------------------------------------
   const dismissEvent = useCallback(async (eventId) => {
     const id = String(eventId);

@@ -6,24 +6,24 @@
  *
  * Architecture:
  *   - In-memory Sets are the fast-path for all O(1) lookups at request time.
- *   - Blob storage is the durable backing store — a single feedback.json file
+ *   - Blob storage is the durable backing store, a single feedback.json file
  *     is read once on startup (initFeedbackStore) and overwritten on every
  *     dismiss or confirm action.
  *
  * Degradation:
  *   - If BLOB_READ_WRITE_TOKEN is absent (local dev without .env), the store
- *     operates in-memory only — feedback survives the session but not restarts.
- *   - Blob write failures are logged and swallowed — the in-memory state is
+ *     operates in-memory only, feedback survives the session but not restarts.
+ *   - Blob write failures are logged and swallowed, the in-memory state is
  *     always authoritative for the current process.
  *
- * Blob key: "feedback.json" (no random suffix — always overwrites in place)
+ * Blob key: "feedback.json" (no random suffix, always overwrites in place)
  */
 
 import { put, list } from '@vercel/blob';
 
 const BLOB_KEY = 'feedback.json';
 
-// In-memory sets — the hot path for all /api/events filtering
+// In-memory sets, the hot path for all /api/events filtering
 let dismissedIds = new Set();
 let confirmedIds = new Set();
 
@@ -34,7 +34,7 @@ let confirmedIds = new Set();
 async function loadFromBlob() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return;
   try {
-    // head() requires a full blob URL, not a pathname — use list() to resolve.
+    // head() requires a full blob URL, not a pathname, use list() to resolve.
     const { blobs } = await list({ prefix: BLOB_KEY, limit: 1 });
     if (!blobs[0]?.url) return;
     const res = await fetch(blobs[0].url);
@@ -44,7 +44,7 @@ async function loadFromBlob() {
     confirmedIds = new Set((data.confirmed || []).map(String));
     console.log(`[feedback] Loaded ${dismissedIds.size} dismissed / ${confirmedIds.size} confirmed from Blob`);
   } catch (err) {
-    // BlobNotFoundError on first deploy is expected — not a real error
+    // BlobNotFoundError on first deploy is expected, not a real error
     if (!err.message?.includes('not found')) {
       console.warn('[feedback] Failed to load from Blob:', err.message);
     }
@@ -65,7 +65,7 @@ async function persistToBlob() {
 }
 
 // ---------------------------------------------------------------------------
-// Initialization — called once at server startup, before the cache warms.
+// Initialization, called once at server startup, before the cache warms.
 // ---------------------------------------------------------------------------
 export async function initFeedbackStore() {
   await loadFromBlob();

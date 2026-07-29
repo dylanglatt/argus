@@ -5,7 +5,7 @@
  *
  * Marks an event as analyst-confirmed valid signal.
  * Loads current feedback state from Vercel Blob on each invocation
- * (serverless functions are stateless — in-memory sets reset per cold start),
+ * (serverless functions are stateless, in-memory sets reset per cold start),
  * then persists the updated state back to Blob.
  */
 
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Load current state from Blob before modifying — prevents overwrites
+  // Load current state from Blob before modifying, prevents overwrites
   // when multiple events are confirmed in sequence across separate invocations.
   await initFeedbackStore();
   await confirmEvent(id);

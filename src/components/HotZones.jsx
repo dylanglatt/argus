@@ -13,7 +13,7 @@ const LABEL_STYLE = {
  * HotZones
  * --------
  * Escalating regions: yesterday vs day-before, ≥30% increase.
- * Blueprint danger callout style — red left-border, elevated bg.
+ * Blueprint danger callout style, red left-border, elevated bg.
  */
 export function HotZones({ events, onSelectCountry }) {
   const hotZones = useMemo(() => {
@@ -74,7 +74,7 @@ export function HotZones({ events, onSelectCountry }) {
         <div
           key={country}
           onClick={() => onSelectCountry(country)}
-          title={`${recentCount} events yesterday — up ${pctChange}% vs prior day`}
+          title={`${recentCount} events yesterday, up ${pctChange}% vs prior day`}
           style={{
             display:        'flex',
             alignItems:     'center',

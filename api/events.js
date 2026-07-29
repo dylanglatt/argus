@@ -1,7 +1,7 @@
 /**
  * api/events.js
  * -------------
- * Vercel serverless function — GET /api/events
+ * Vercel serverless function, GET /api/events
  *
  * Primary path: read Haiku-filtered events from Vercel Blob (written
  * every 30 min by the GitHub Actions refresh-events workflow).
@@ -10,9 +10,9 @@
  * do a live GDELT fetch without Haiku (30s timeout constraint).
  *
  * Cache strategy: CDN-level response caching via Cache-Control.
- *   s-maxage=900           — Vercel edge caches for 15 min (matches
+ *   s-maxage=900          , Vercel edge caches for 15 min (matches
  *                            the 30-min workflow cadence)
- *   stale-while-revalidate=86400 — serve stale instantly while
+ *   stale-while-revalidate=86400, serve stale instantly while
  *                                  revalidating in the background
  */
 
@@ -28,7 +28,7 @@ import {
 
 export default async function handler(req, res) {
   // Load analyst feedback from Blob before filtering/serving events.
-  // Serverless functions are stateless — must reload on each invocation.
+  // Serverless functions are stateless, must reload on each invocation.
   await initFeedbackStore();
 
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=86400');
@@ -56,10 +56,10 @@ export default async function handler(req, res) {
     source = 'kv';
     fetchedAt = blobResult.fetchedAt;
     kvAgeMinutes = Math.round((Date.now() - fetchedAt) / 60000);
-    console.log(`[events] Blob hit — ${events.length} events, age ${kvAgeMinutes}m`);
+    console.log(`[events] Blob hit, ${events.length} events, age ${kvAgeMinutes}m`);
   } else {
-    // 2. Blob miss — fall back to live GDELT (no Haiku, VERCEL env is set)
-    console.warn('[events] Blob miss — falling back to live GDELT fetch');
+    // 2. Blob miss, fall back to live GDELT (no Haiku, VERCEL env is set)
+    console.warn('[events] Blob miss, falling back to live GDELT fetch');
     try {
       events = await fetchConflictEvents({ days: 1, stepHours: 6, limit: VERCEL_EVENT_CAP });
       source = 'gdelt_live';
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
     }
 
     if (!events || events.length === 0) {
-      console.log('[events] No GDELT events — serving mock data');
+      console.log('[events] No GDELT events, serving mock data');
       events = [...mockEvents];
       source = 'mock';
       fetchedAt = Date.now();

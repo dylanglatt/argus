@@ -2,9 +2,11 @@ import React, { useRef, useState, useMemo, useEffect } from 'react';
 import Map, { Source, Layer, Popup, NavigationControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { EVENT_TYPES, MAP_CONFIG } from '../utils/constants';
+import { resolveActorName } from '../utils/actors';
+import { noEmDash } from '../utils/text';
 
 /**
- * MapView — fills the upper content area.
+ * MapView, fills the upper content area.
  * Dark Mapbox basemap, circle markers sized by num_mentions and colored by
  * event type. Events are clustered at low zoom levels. Cluster color reflects
  * conflict density: low count = dim blue, high count = saturated red (heat).
@@ -77,6 +79,8 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           location:         event.location,
           actor1:           event.actor1,
           actor2:           event.actor2,
+          actor1_type:      event.actor1_type      || '',
+          actor2_type:      event.actor2_type      || '',
           impact_score:     event.impact_score    ?? 0,
           goldstein:        event.goldstein_scale ?? 0,
           num_mentions:     event.num_mentions    ?? 1,
@@ -201,7 +205,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
   return (
     <div style={{ flex: 1, position: 'relative', overflow: 'hidden', borderBottom: '1px solid #2f343c' }}>
 
-      {/* Loading skeleton — shown until Mapbox tiles are fully rendered */}
+      {/* Loading skeleton, shown until Mapbox tiles are fully rendered */}
       {!mapLoaded && (
         <div style={{
           position:       'absolute',
@@ -256,7 +260,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
         <NavigationControl position="top-right" showCompass={false} />
 
         {/*
-          Heatmap source — non-clustered, used only for the density background.
+          Heatmap source, non-clustered, used only for the density background.
           Separate from the marker source so heatmap renders all points as a
           continuous density field, independent of clustering.
         */}
@@ -273,13 +277,13 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
                 50, 0.5,
                 200, 0.8,
               ],
-              // Keep intensity low — this is a background hint, not the primary visual
+              // Keep intensity low, this is a background hint, not the primary visual
               'heatmap-intensity': [
                 'interpolate', ['linear'], ['zoom'],
                 0, 0.2,
                 5, 0.5,
               ],
-              // Color: transparent → cool blue only — no orange/red bleed at global zoom
+              // Color: transparent → cool blue only, no orange/red bleed at global zoom
               'heatmap-color': [
                 'interpolate', ['linear'], ['heatmap-density'],
                 0,    'rgba(0,0,0,0)',
@@ -288,7 +292,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
                 0.75, 'rgba(120,60,10,0.5)',
                 1,    'rgba(180,28,28,0.55)',
               ],
-              // Small radius — dots, not continent-spanning blobs
+              // Small radius, dots, not continent-spanning blobs
               'heatmap-radius': [
                 'interpolate', ['linear'], ['zoom'],
                 0, 5,
@@ -296,7 +300,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
                 5, 12,
                 7, 10,
               ],
-              // Fade out early — clusters take over by zoom 4
+              // Fade out early, clusters take over by zoom 4
               'heatmap-opacity': [
                 'interpolate', ['linear'], ['zoom'],
                 2,  0.35,
@@ -307,7 +311,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           />
         </Source>
 
-        {/* Clustered marker source — clusters + individual points */}
+        {/* Clustered marker source, clusters + individual points */}
         <Source
           id="conflict-events"
           type="geojson"
@@ -316,7 +320,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           clusterMaxZoom={6}
           clusterRadius={60}
         >
-          {/* Cluster bubble — color by conflict density */}
+          {/* Cluster bubble, color by conflict density */}
           <Layer
             id="conflict-clusters"
             type="circle"
@@ -391,7 +395,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
             paint={{
               'circle-radius': radiusExpr,
               'circle-color':  colorExpr,
-              // Fade in as zoom increases — heatmap handles the low-zoom view
+              // Fade in as zoom increases, heatmap handles the low-zoom view
               'circle-opacity': [
                 'interpolate', ['linear'], ['zoom'],
                 3, 0,
@@ -409,7 +413,7 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
           />
         </Source>
 
-        {/* FIRMS thermal anomaly layer — toggle-able satellite overlay */}
+        {/* FIRMS thermal anomaly layer, toggle-able satellite overlay */}
         {showThermal && firmsData && (
           <Source id="firms-thermal" type="geojson" data={firmsGeoData}>
             <Layer
@@ -427,8 +431,8 @@ export function MapView({ events, onEventClick, selectedEventId, onOpenCountryBr
                 ],
                 'circle-color': [
                   'interpolate', ['linear'], ['get', 'frp'],
-                  30,  '#ec9a3c',   // orange — moderate fire
-                  150, '#e76a6e',   // red    — high-intensity fire
+                  30,  '#ec9a3c',   // orange, moderate fire
+                  150, '#e76a6e',   // red   , high-intensity fire
                 ],
                 // Lower opacity so event cluster circles remain legible underneath
                 'circle-opacity': [
@@ -648,8 +652,8 @@ function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
         <Detail label="DATE"       value={event.date}                              mono />
         <Detail label="IMPACT"     value={`${score}/10`} mono valueColor={impactColor} />
-        <Detail label="ACTOR 1"    value={event.actor1} />
-        <Detail label="ACTOR 2"    value={event.actor2 || '—'} />
+        <Detail label="ACTOR 1"    value={resolveActorName(event.actor1, event.actor1_type) || 'Unattributed'} />
+        <Detail label="ACTOR 2"    value={resolveActorName(event.actor2, event.actor2_type) || 'Unattributed'} />
         <Detail label="MENTIONS"   value={(event.num_mentions ?? 0).toLocaleString()} mono />
         <Detail label="AVG TONE"   value={toneStr}       mono valueColor={toneColor} />
       </div>
@@ -675,7 +679,7 @@ function PopupContent({ event, onOpenCountryBrief, onConfirm, onDismiss, onClose
             WebkitBoxOrient:     'vertical',
             overflow:            'hidden',
           }}>
-            {event.notes}
+            {noEmDash(event.notes)}
           </div>
         </div>
       )}

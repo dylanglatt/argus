@@ -1,7 +1,7 @@
 /**
  * api/firms/index.js
  * ------------------
- * Vercel serverless function — GET /api/firms
+ * Vercel serverless function, GET /api/firms
  *
  * Returns NASA FIRMS thermal anomaly data for the conflict-relevant
  * bounding box (Africa, Middle East, Central/South Asia).

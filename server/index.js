@@ -28,7 +28,7 @@ app.use(express.json());
 // After warmup: refresh every 15 minutes so the cache is always current and
 // incoming requests never block on a stale fetch.
 // ---------------------------------------------------------------------------
-const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 min — matches GDELT publish cadence
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 min, matches GDELT publish cadence
 
 let warmupDone = false;
 
@@ -54,7 +54,7 @@ async function backgroundRefresh() {
 }
 
 // Initialize feedback store first (loads dismissed/confirmed from Blob),
-// then warm the event cache. Both are non-blocking — the server is ready
+// then warm the event cache. Both are non-blocking, the server is ready
 // to accept requests immediately; data arrives as soon as fetches complete.
 initFeedbackStore().then(() => warmCache()).then(() => {
   setInterval(backgroundRefresh, REFRESH_INTERVAL_MS);
@@ -101,7 +101,7 @@ app.get('/api/events', async (req, res) => {
 
   // If GDELT returned nothing (e.g. all downloads failed), use mock
   if (!events || events.length === 0) {
-    console.log('[events] No GDELT events — serving mock data');
+    console.log('[events] No GDELT events, serving mock data');
     events = [...mockEvents];
     source = 'mock';
   }
@@ -139,7 +139,7 @@ app.get('/api/events', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Feedback loop — analyst dismiss / restore
+// Feedback loop, analyst dismiss / restore
 // ---------------------------------------------------------------------------
 
 /**
@@ -155,7 +155,7 @@ app.post('/api/events/:id/dismiss', async (req, res) => {
 
 /**
  * DELETE /api/events/:id/dismiss
- * Undo a dismissal — restore a previously marked event.
+ * Undo a dismissal, restore a previously marked event.
  */
 app.delete('/api/events/:id/dismiss', async (req, res) => {
   const { id } = req.params;
@@ -184,7 +184,7 @@ app.get('/api/feedback/dismissed', (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// NASA FIRMS — satellite thermal anomaly data
+// NASA FIRMS, satellite thermal anomaly data
 // ---------------------------------------------------------------------------
 
 /**
@@ -221,7 +221,7 @@ app.get('/api/firms/corroborate', async (req, res) => {
 
 /**
  * POST /api/firms/corroborate-batch
- * Batch corroboration — accepts { events: [{ id, lat, lon, date }] }
+ * Batch corroboration, accepts { events: [{ id, lat, lon, date }] }
  * Returns { results: { [id]: { corroborated, detections, maxFRP, nearestKm } } }
  */
 app.post('/api/firms/corroborate-batch', async (req, res) => {
@@ -239,7 +239,7 @@ app.post('/api/firms/corroborate-batch', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// ReliefWeb — humanitarian reports for Country Briefs
+// ReliefWeb, humanitarian reports for Country Briefs
 // ---------------------------------------------------------------------------
 
 /**

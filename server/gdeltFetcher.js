@@ -38,14 +38,15 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { applyHaikuFilter } from './haikuFilter.js';
+import { scoreEvent } from './scoring.js';
 
 // ---------------------------------------------------------------------------
-// Disk cache — persists filtered events across server restarts so cold starts
+// Disk cache, persists filtered events across server restarts so cold starts
 // load in milliseconds instead of re-downloading + re-running Haiku each time.
 //
 // Layout:
-//   server/cache/events.json   — array of normalized, Haiku-filtered events
-//   server/cache/meta.json     — { fetchedAt: ms, eventCount: n }
+//   server/cache/events.json  , array of normalized, Haiku-filtered events
+//   server/cache/meta.json    , { fetchedAt: ms, eventCount: n }
 //
 // Strategy:
 //   1. On startup: if disk cache is < DISK_TTL_MS old, load it and skip fetch
@@ -58,7 +59,7 @@ const __dirname    = path.dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR    = path.join(__dirname, 'cache');
 const EVENTS_FILE  = path.join(CACHE_DIR, 'events.json');
 const META_FILE    = path.join(CACHE_DIR, 'meta.json');
-const DISK_TTL_MS  = 15 * 60 * 1000;   // 15 min — matches GDELT publish cadence
+const DISK_TTL_MS  = 15 * 60 * 1000;   // 15 min, matches GDELT publish cadence
 const MAX_AGE_DAYS = 7;                 // Prune events older than this
 
 function ensureCacheDir() {
@@ -70,9 +71,9 @@ function loadFromDisk() {
     if (!fs.existsSync(META_FILE) || !fs.existsSync(EVENTS_FILE)) return null;
     const meta   = JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
     const age    = Date.now() - meta.fetchedAt;
-    if (age > DISK_TTL_MS) return null;   // Stale — caller will re-fetch
+    if (age > DISK_TTL_MS) return null;   // Stale, caller will re-fetch
     const events = JSON.parse(fs.readFileSync(EVENTS_FILE, 'utf8'));
-    console.log(`[gdelt] Disk cache hit — ${events.length} events (age ${Math.round(age / 1000)}s)`);
+    console.log(`[gdelt] Disk cache hit, ${events.length} events (age ${Math.round(age / 1000)}s)`);
     return { events, fetchedAt: meta.fetchedAt };
   } catch (err) {
     console.warn('[gdelt] Disk cache read failed:', err.message);
@@ -85,7 +86,7 @@ function saveToDisk(events, fetchedAt) {
     ensureCacheDir();
     fs.writeFileSync(EVENTS_FILE, JSON.stringify(events));
     fs.writeFileSync(META_FILE,   JSON.stringify({ fetchedAt, eventCount: events.length }));
-    console.log(`[gdelt] Disk cache written — ${events.length} events`);
+    console.log(`[gdelt] Disk cache written, ${events.length} events`);
   } catch (err) {
     console.warn('[gdelt] Disk cache write failed:', err.message);
   }
@@ -109,7 +110,7 @@ const C = {
   GLOBALEVENTID:       0,
   SQLDATE:             1,
   Actor1Name:          6,
-  Actor1Type1Code:     12,  // e.g. MIL, GOV, REB, CVL, BUS, COP — primary actor type
+  Actor1Type1Code:     12,  // e.g. MIL, GOV, REB, CVL, BUS, COP, primary actor type
   Actor2Name:          16,
   Actor2Type1Code:     22,  // same type codes for actor 2
   EventCode:           26,
@@ -138,7 +139,7 @@ function mapEventType(eventRootCode, eventCode) {
   const code = String(eventCode || '');
 
   // -------------------------------------------------------------------
-  // KINETIC EVENTS ONLY — if nobody is being shot, bombed, or attacked,
+  // KINETIC EVENTS ONLY, if nobody is being shot, bombed, or attacked,
   // it doesn't belong in a conflict tracker.
   //
   // EXCLUDED root codes (non-kinetic, generate enormous noise):
@@ -150,16 +151,16 @@ function mapEventType(eventRootCode, eventCode) {
   // Exception: CAMEO 145 (violent riot) is kinetic and kept.
   // -------------------------------------------------------------------
 
-  // Riots (violent protest — subset of root 14, the ONLY 14x code we keep)
+  // Riots (violent protest, subset of root 14, the ONLY 14x code we keep)
   if (code === '145') return 'Riots';
 
-  // Root 14 (all non-violent protests) — excluded
+  // Root 14 (all non-violent protests), excluded
   if (root === 14) return null;
 
-  // Roots 13, 16, 17 — excluded (verbal threats, diplomatic, sanctions)
+  // Roots 13, 16, 17, excluded (verbal threats, diplomatic, sanctions)
   if (root === 13 || root === 16 || root === 17) return null;
 
-  // Explosions / Remote violence — bombings, airstrikes, artillery
+  // Explosions / Remote violence, bombings, airstrikes, artillery
   if (
     code.startsWith('183') || // Bombing subtypes
     code.startsWith('195') || // Air/naval/artillery force
@@ -170,15 +171,15 @@ function mapEventType(eventRootCode, eventCode) {
     return 'Explosions/Remote violence';
   }
 
-  // Violence against civilians — assault, hostage-taking, mass violence
+  // Violence against civilians, assault, hostage-taking, mass violence
   if (root === 18 || root === 20) return 'Violence against civilians';
 
-  // Battles — fighting, military engagement
+  // Battles, fighting, military engagement
   if (root === 19) return 'Battles';
 
-  // Military posture — mobilization, force display (root 15)
+  // Military posture, mobilization, force display (root 15)
   // Only MILITARY codes: 152 (military alert), 154 (armed forces), 155 (clandestine).
-  // Exclude 150 (generic), 151 (police alert), 153 (police power) — domestic policing.
+  // Exclude 150 (generic), 151 (police alert), 153 (police power), domestic policing.
   if (code === '152' || code === '154' || code === '155') return 'Strategic developments';
   if (root === 15) return null;
 
@@ -298,13 +299,13 @@ const FIPS_TO_COUNTRY = {
 };
 
 // ---------------------------------------------------------------------------
-// Actor normalization support sets — derived from FIPS_TO_COUNTRY + manual
+// Actor normalization support sets, derived from FIPS_TO_COUNTRY + manual
 // ---------------------------------------------------------------------------
 
-// Full country names — used to demote bare country-name actors with no type code.
+// Full country names, used to demote bare country-name actors with no type code.
 const COUNTRY_NAMES = new Set(Object.values(FIPS_TO_COUNTRY));
 
-// US states and territories — GDELT frequently confuses geographic location
+// US states and territories, GDELT frequently confuses geographic location
 // with actor identity, producing entries like "Florida []" or "California []".
 const US_STATES = new Set([
   'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
@@ -360,7 +361,7 @@ const NATIONALITY_TO_LABEL = {
 
 // Country name → nationality adjective for typed country-as-actor expansion.
 // "Israel [MIL]" → "Israeli Military"  |  "Iran [GOV]" → "Iranian Government"
-// Only covers conflict-relevant countries — others fall back to "Country Role".
+// Only covers conflict-relevant countries, others fall back to "Country Role".
 const COUNTRY_TO_NATIONALITY = {
   'Israel':                          'Israeli',
   'Iran':                            'Iranian',
@@ -397,7 +398,7 @@ const COUNTRY_TO_NATIONALITY = {
 };
 
 // Armed/state actor type code → readable role label.
-// Non-armed types (CVL, BUS, MED, etc.) are not included — those should be
+// Non-armed types (CVL, BUS, MED, etc.) are not included, those should be
 // demoted to Unknown when they appear as a bare country name.
 const ARMED_TYPE_TO_ROLE = {
   MIL: 'Military',
@@ -409,15 +410,15 @@ const ARMED_TYPE_TO_ROLE = {
   IGO: 'Forces',
 };
 
-// Generic standalone role titles — sentence subjects GDELT extracted without
+// Generic standalone role titles, sentence subjects GDELT extracted without
 // resolving a real actor. Demoted to Unknown rather than rejected outright,
 // so events with a meaningful second actor are preserved.
 const GENERIC_ROLE_TITLES = new Set([
-  // Comms roles — extracted from "a spokesman said" / "the spokesperson confirmed"
+  // Comms roles, extracted from "a spokesman said" / "the spokesperson confirmed"
   'Spokesman', 'Spokesmen', 'Spokesperson', 'Spokespersons', 'Spokeswoman',
   // Generic military/combatant titles without organizational context
   'Commander', 'Commanders', 'Fighter', 'Fighters',
-  // Religious/community titles — appear when GDELT misidentifies religious context
+  // Religious/community titles, appear when GDELT misidentifies religious context
   'Imam', 'Imams', 'Sheikh', 'Sheikhs', 'Cleric', 'Clerics',
   'Bishop', 'Bishops', 'Pastor', 'Pastors', 'Priest', 'Priests',
   // Vague institutional roles
@@ -426,7 +427,7 @@ const GENERIC_ROLE_TITLES = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
-// GDELT actor name expansion — common abbreviations and type codes
+// GDELT actor name expansion, common abbreviations and type codes
 // ---------------------------------------------------------------------------
 const ACTOR_EXPANSIONS = {
   'GOV':      'Government',
@@ -446,7 +447,7 @@ const ACTOR_EXPANSIONS = {
   'LEG':      'Legislature',
 };
 
-// Parse actor name: GDELT concatenates type codes — produce a readable label.
+// Parse actor name: GDELT concatenates type codes, produce a readable label.
 function cleanActorName(raw) {
   if (!raw || raw.trim() === '') return 'Unknown';
   const s = raw.trim();
@@ -483,7 +484,7 @@ function buildNotes(eventType, subType, actor1, actor2, location, numMentions, n
       ? `${numSources} outlet`
       : `${numSources} outlets`;
 
-  return `${subType || eventType} — ${actors} in ${location}. Reported across ${numMentions} mention(s) from ${coverage}. Goldstein: ${goldSign}${goldstein.toFixed(1)}.`;
+  return `${subType || eventType}: ${actors} in ${location}. Reported across ${numMentions} mention(s) from ${coverage}. Goldstein: ${goldSign}${goldstein.toFixed(1)}.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -493,31 +494,31 @@ function buildNotes(eventType, subType, actor1, actor2, location, numMentions, n
 // LLM to re-discover that "protective-order-ruling" is not a war event.
 // ---------------------------------------------------------------------------
 const REJECT_URL_SLUGS = [
-  // Family / domestic law — never kinetic conflict
+  // Family / domestic law, never kinetic conflict
   'protective-order', 'restraining-order', 'child-custody', 'custody-battle',
   'no-contact-order', 'divorce-settlement', 'custody-hearing', 'parental-rights',
   'visitation-rights', 'unsupervised-visit', 'alimony', 'child-support',
   // Court outcomes that are structurally non-conflict
   'court-ruling', 'court-order', 'court-decision', 'verdict-reached',
   'pleads-guilty', 'plea-deal', 'sentenced-to', 'acquitted',
-  // Celebrity / entertainment — high GDELT false-positive surface area
+  // Celebrity / entertainment, high GDELT false-positive surface area
   '-wedding-', '-engagement-', '-honeymoon-', '-baby-shower-', '-pregnancy-',
   '-maternity-', '-breakup-', '-divorce-',
-  // Sports — GDELT frequently misreads competitive language as conflict
+  // Sports, GDELT frequently misreads competitive language as conflict
   'super-bowl', 'world-cup', 'march-madness', 'nfl-', 'nba-', 'mlb-', 'nhl-', '-mls-',
   // Entertainment awards
   'grammy', 'oscar-', '-emmy-', 'golden-globe', 'box-office',
-  // Domestic accidents / weather — not conflict
+  // Domestic accidents / weather, not conflict
   'car-accident', 'car-crash', 'traffic-accident', 'plane-crash',
   'hurricane-', 'tornado-', 'wildfire-', 'earthquake-',
-  // Opinion / editorial content — not reporting, not conflict evidence
+  // Opinion / editorial content, not reporting, not conflict evidence
   '/opinion/', '/editorial/', '/commentary/', '/op-ed/', '/letters-to-',
   '/letter-to-editor', '-opinion-', '-editorial-', '-commentary-',
-  // Immigration / border politics — routinely miscoded as foreign military events
+  // Immigration / border politics, routinely miscoded as foreign military events
   // e.g. "Trump blames Biden border policies for hammer attack" → CAMEO 190 in Iran
   'illegal-immigrant', 'haitian-migrant', '-deportation-', 'ice-deportation',
   'ice-arrest', 'border-polic', 'department-of-homeland',
-  // Domestic crime slug patterns — high false-positive surface in stable countries
+  // Domestic crime slug patterns, high false-positive surface in stable countries
   '-homicide-investigation', '-murder-investigation', '-stabbing-victim',
   '-shooting-victim', 'bludgeoned', 'hammer-attack',
 ];
@@ -534,7 +535,7 @@ const REJECT_DOMAINS = new Set([
   'worldtribune.com',
   'debka.com',
   'southfront.org',
-  // Clickbait / tabloid — not credible for conflict reporting
+  // Clickbait / tabloid, not credible for conflict reporting
   'thesun.co.uk',
   'dailystar.co.uk',
   'mirror.co.uk',
@@ -542,34 +543,34 @@ const REJECT_DOMAINS = new Set([
   'hongkongherald.com',
   'londonlovesbusiness.com',
   'modernghana.com',
-  // Small local papers indexed by GDELT — opinion pieces misclassified as conflict
+  // Small local papers indexed by GDELT, opinion pieces misclassified as conflict
   'timberjay.com',
   'thegrayzone.com',
   'mintpressnews.com',
-  // Local Kansas general-interest paper — no conflict reporting; GDELT misclassifies
+  // Local Kansas general-interest paper, no conflict reporting; GDELT misclassifies
   // historical retrospectives (cavalry, battles) as kinetic events via military NLP
   'hayspost.com',
-  // US local TV affiliates — never primary sources for foreign military events
+  // US local TV affiliates, never primary sources for foreign military events
   // Confirmed false-positive: turnto10.com Florida hammer-attack → Iran CAMEO 190
   'turnto10.com', 'abc7.com', 'abc7news.com', 'fox5.com', 'fox5dc.com',
   'nbcwashington.com', 'myfoxny.com', 'wsbtv.com', 'wral.com', 'komo4.com',
   'kiro7.com', 'kxan.com', 'wbaltv.com', 'wgal.com', 'wpxi.com', 'wtae.com',
   'wjla.com', 'nbc12.com', 'wtvr.com', 'wric.com', '13newsnow.com',
-  // Opinion / political commentary blogs — confirmed false-positives from live audit:
+  // Opinion / political commentary blogs, confirmed false-positives from live audit:
   // ruthfullyyours.com sourced both a Jerusalem and a Yemen event; content is US
   // conservative opinion with no original reporting. Not a news outlet.
   'ruthfullyyours.com',
-  // Bolivarian/chavista advocacy site — opinion and analysis, not news reporting.
+  // Bolivarian/chavista advocacy site, opinion and analysis, not news reporting.
   // Confirmed false-positive: Caracas event sourced from editorial interview.
   'venezuelanalysis.com',
-  // Canadian tech-startup trade press — no conflict coverage whatsoever.
+  // Canadian tech-startup trade press, no conflict coverage whatsoever.
   // Confirmed false-positive: Calgary "conflict" was a COO hiring announcement.
   'betakit.com',
-  // Far-right political opinion magazines — framing routinely triggers CAMEO
+  // Far-right political opinion magazines, framing routinely triggers CAMEO
   // conflict codes on domestic US politics / immigration commentary.
   'frontpagemag.com',
   'amgreatness.com',
-  // Think-tank opinion outlet — publishes policy commentary, not conflict reporting.
+  // Think-tank opinion outlet, publishes policy commentary, not conflict reporting.
   'gatestoneinstitute.org',
 ]);
 
@@ -582,7 +583,7 @@ const REJECT_DOMAINS = new Set([
 //   3. Digit-prefixed stations:  13newsnow.com, 10news.com
 //
 // These outlets cover local metro markets. They should never be the primary
-// source for a foreign military event — any GDELT coding that names one as
+// source for a foreign military event, any GDELT coding that names one as
 // the source for e.g. an Iran or Nigeria event is a domestic story miscoded
 // as foreign conflict. The check is only applied when the event country ≠ US,
 // so legitimate domestic reporting (police, protests) is unaffected.
@@ -617,7 +618,7 @@ function rejectByUrl(sourceUrl) {
   try {
     const hostname = new URL(sourceUrl).hostname.replace(/^www\./, '');
     if (REJECT_DOMAINS.has(hostname)) return true;
-  } catch { /* malformed URL — handled downstream */ }
+  } catch { /* malformed URL, handled downstream */ }
 
   return false;
 }
@@ -635,18 +636,18 @@ function rejectByUrl(sourceUrl) {
 const STABLE_COUNTRY_CODES = new Set([
   'US', 'CA', 'UK', 'GM', 'FR', 'IT', 'SP', 'NL', 'BE', 'AU', 'NZ',
   'JA', 'SW', 'NO', 'DA', 'FI', 'EI', 'PO', 'EZ', 'PL', 'HU',
-  'SZ', 'AU', 'AS',   // Austria/Australia both map to AS/AU — covered
+  'SZ', 'AU', 'AS',   // Austria/Australia both map to AS/AU, covered
 ]);
 
 const ARMED_TYPES_FOR_STABLE = new Set(['MIL', 'REB', 'SPY', 'UAF', 'COP', 'GOV', 'IGO']);
 
 function rejectStableCountryNoise(countryCode, actor1_type, actor2_type, goldstein) {
-  if (!STABLE_COUNTRY_CODES.has(countryCode)) return false; // Not a stable country — keep
+  if (!STABLE_COUNTRY_CODES.has(countryCode)) return false; // Not a stable country, keep
   const hasArmedActor =
     ARMED_TYPES_FOR_STABLE.has(actor1_type) ||
     ARMED_TYPES_FOR_STABLE.has(actor2_type);
-  if (hasArmedActor) return false;         // Armed actors present — keep
-  if (goldstein <= -5) return false;       // Extreme conflict score — keep
+  if (hasArmedActor) return false;         // Armed actors present, keep
+  if (goldstein <= -5) return false;       // Extreme conflict score, keep
   return true;                             // Civilian actors + mild Goldstein in stable country → reject
 }
 
@@ -660,7 +661,7 @@ function rejectStableCountryNoise(countryCode, actor1_type, actor2_type, goldste
 // ---------------------------------------------------------------------------
 // Resolve a raw GDELT source URL.
 // GDELT sometimes records only the root domain (e.g. "https://www.aljazeera.com/")
-// instead of a specific article path. These are useless as primary sources —
+// instead of a specific article path. These are useless as primary sources -
 // clicking them takes an analyst to a homepage, not the article.
 // Return null for root-only URLs so the UI can render a degraded state.
 // ---------------------------------------------------------------------------
@@ -683,7 +684,7 @@ function normalizeRow(cols, hourBucket = 0) {
   const rootCode  = parseInt(cols[C.EventRootCode], 10);
 
   // Keep only Material Conflict (QuadClass 4) with kinetic root codes.
-  // QuadClass 3 (Verbal Conflict) is excluded — verbal threats are not kinetic.
+  // QuadClass 3 (Verbal Conflict) is excluded, verbal threats are not kinetic.
   // Kinetic roots: 15 (force posture), 18 (assault), 19 (fight), 20 (mass violence).
   // Root 14 is only kept for code 145 (violent riot); all others are non-kinetic.
   // Roots 13, 16, 17 are fully excluded by mapEventType → null.
@@ -754,17 +755,17 @@ function normalizeRow(cols, hourBucket = 0) {
   const actor2_type = String(cols[C.Actor2Type1Code] || '').trim().toUpperCase();
 
   // ---------------------------------------------------------------------------
-  // Actor quality normalization — applied in priority order before any other
+  // Actor quality normalization, applied in priority order before any other
   // actor-based logic so downstream checks operate on cleaned data.
   // ---------------------------------------------------------------------------
 
-  // 1. JUD (judicial) type code — court actors are never kinetic participants.
+  // 1. JUD (judicial) type code, court actors are never kinetic participants.
   //    More reliable than name-matching since GDELT type codes are structured.
   if (actor1_type === 'JUD' || actor2_type === 'JUD') return null;
 
-  // 2. Soft institutional type pairs (NGO, LAB, MED) — an NGO vs. labor union
+  // 2. Soft institutional type pairs (NGO, LAB, MED), an NGO vs. labor union
   //    event or NGO with Unknown opponent has no place in a kinetic conflict feed.
-  //    Exception: NGO/LAB paired against a genuine military actor is kept —
+  //    Exception: NGO/LAB paired against a genuine military actor is kept -
   //    e.g. a war-crimes report where an NGO names a MIL perpetrator.
   const SOFT_TYPES = new Set(['NGO', 'LAB', 'MED']);
   const HARD_TYPES = new Set(['MIL', 'REB', 'SPY', 'UAF', 'COP', 'GOV', 'IGO']);
@@ -775,7 +776,7 @@ function normalizeRow(cols, hourBucket = 0) {
   if (a1Soft && !a2Hard) return null;
   if (a2Soft && !a1Hard) return null;
 
-  // 3. Country name actors — two cases:
+  // 3. Country name actors, two cases:
   //    a) No type code → bare country name, demote to 'Unknown'
   //       (GDELT fell back to the country when it couldn't resolve an actor)
   //    b) Armed type code → expand to readable label: "Israel [MIL]" → "Israeli Military"
@@ -808,11 +809,11 @@ function normalizeRow(cols, hourBucket = 0) {
     actor2 = actor2_type ? NATIONALITY_TO_LABEL[actor2] : 'Unknown';
   }
 
-  // 7. Collapse same-entity pairs — GDELT sometimes lists the same country on
+  // 7. Collapse same-entity pairs, GDELT sometimes lists the same country on
   //    both sides (e.g. "Iran [MIL] vs Iran []"). Demote the duplicate.
   if (actor1 !== 'Unknown' && actor1 === actor2) actor2 = 'Unknown';
 
-  // 8. Generic standalone role titles — demote to Unknown.
+  // 8. Generic standalone role titles, demote to Unknown.
   //    These are sentence subjects GDELT extracted without resolving an actual
   //    named actor: "a commander confirmed", "the spokesman said", "an imam urged".
   //    Demoting (not rejecting) preserves events where the other actor is meaningful.
@@ -822,11 +823,19 @@ function normalizeRow(cols, hourBucket = 0) {
   // 9. Ministerial / departmental titles without armed type codes.
   //    "Education Minister", "Health Secretary" etc. are civilian context actors
   //    GDELT extracted from background sentences in the article, not direct
-  //    conflict participants. Armed type codes (GOV, MIL) are exempt — a
+  //    conflict participants. Armed type codes (GOV, MIL) are exempt, a
   //    "Defense Minister [GOV]" is a legitimate stakeholder.
   const CIVILIAN_TITLE_RE = /\b(?:minister|secretary|ambassador|consul|chancellor|commissioner|senator|mayor|congressman|representative)\b/i;
   if (!actor1_type && CIVILIAN_TITLE_RE.test(actor1)) actor1 = 'Unknown';
   if (!actor2_type && CIVILIAN_TITLE_RE.test(actor2)) actor2 = 'Unknown';
+
+  // Note on generic combatant nouns ("Gunman", "Bandit", "Military", "Police"):
+  // these are deliberately NOT demoted to Unknown here. In underreported
+  // conflict zones (Sahel, Nigeria, DRC) a real attack is frequently coded with
+  // only "Gunmen" or "Bandit" as the actor; demoting both sides would trip the
+  // both-Unknown rejection below and silently drop genuine violence. Instead the
+  // display layer (src/utils/actors.js resolveActor) renders these as
+  // "Unattributed" so the event is preserved while never showing a generic noun.
 
   // ---------------------------------------------------------------------------
 
@@ -838,7 +847,7 @@ function normalizeRow(cols, hourBucket = 0) {
   // GDELT extracts these from everyday news about civilians, consumers, etc.
   // and misclassifies them as conflict actors. Includes plurals (GDELT varies).
   const NOISE_ACTORS = new Set([
-    // Civilian roles — never armed-conflict actors
+    // Civilian roles, never armed-conflict actors
     'Traveler', 'Travelers', 'Tourist', 'Tourists',
     'Resident', 'Residents', 'Consumer', 'Consumers',
     'Student', 'Students', 'Patient', 'Patients',
@@ -849,13 +858,13 @@ function normalizeRow(cols, hourBucket = 0) {
     'Visitor', 'Visitors', 'Homeowner', 'Homeowners',
     'Tenant', 'Tenants', 'Donor', 'Donors',
     'National', 'Nationals', 'Civilian', 'Civilians',
-    // Vague political/institutional — not conflict actors
+    // Vague political/institutional, not conflict actors
     'Administration', 'Party Member', 'Party Members',
     'Health Official', 'Health Officials', 'Settlement', 'Settlements',
     // Military ranks without organizational context
     'Brigadier General', 'Brigadier Generals',
   ]);
-  // Legal/judicial actors — court proceedings are NEVER kinetic conflict.
+  // Legal/judicial actors, court proceedings are NEVER kinetic conflict.
   // Any event with a legal actor on either side is a misclassification.
   const LEGAL_ACTORS = new Set([
     'Attorney', 'Lawyer', 'Prosecutor', 'Judge', 'Magistrate',
@@ -868,26 +877,27 @@ function normalizeRow(cols, hourBucket = 0) {
   if (NOISE_ACTORS.has(actor1) && actor2 === 'Unknown') return null;
   if (NOISE_ACTORS.has(actor2) && actor1 === 'Unknown') return null;
 
-  // Reject events where both actors are Unknown after all normalization —
+  // Reject events where both actors are Unknown after all normalization -
   // there are no named participants and the event has no analytic value.
   if (actor1 === 'Unknown' && actor2 === 'Unknown') return null;
 
   const subType = CAMEO_DESC[eventCode] || CAMEO_DESC[String(eventCode).slice(0, 3)] || eventType;
 
-  // impact_score: composite of Goldstein severity, mention reach, and source volume
-  const goldsteinComponent  = Math.max(0, Math.min(10, (-goldstein / 10) * 10));
-  const mentionsComponent   = Math.min(10, Math.log2(numMentions + 1) / Math.log2(500) * 10);
-  const sourcesComponent    = Math.min(10, Math.log2(numSources + 1)  / Math.log2(50)  * 10);
-  const impact_score = Math.round(
-    goldsteinComponent * 0.60 +
-    mentionsComponent  * 0.25 +
-    sourcesComponent   * 0.15
-  );
+  // impact_score: documented weighted composite (see server/scoring.js). Kept
+  // in sync with the client so stored and displayed severity agree.
+  const { score: impact_score, breakdown: severity_breakdown } = scoreEvent({
+    event_type:      eventType,
+    sub_event_type:  subType,
+    num_mentions:    numMentions,
+    num_sources:     numSources,
+    goldstein_scale: goldstein,
+    avg_tone:        avgTone,
+  });
 
   return {
     event_id_cnty:   String(cols[C.GLOBALEVENTID]),
     event_date:      eventDate,
-    hour_bucket:     hourBucket,    // 0, 6, 12, or 18 UTC — used for 6h TimeChart windows
+    hour_bucket:     hourBucket,    // 0, 6, 12, or 18 UTC, used for 6h TimeChart windows
     event_type:      eventType,
     sub_event_type:  subType,
     actor1,
@@ -900,7 +910,8 @@ function normalizeRow(cols, hourBucket = 0) {
     action_geo_type: parseInt(cols[C.ActionGeo_Type], 10) || 0,
     latitude:        lat,
     longitude:       lng,
-    impact_score,                   // 0–10 conflict severity proxy
+    impact_score,                   // 0-10 conflict severity (see server/scoring.js)
+    severity_breakdown,             // per-component derivation for UI transparency
     goldstein_scale: goldstein,
     num_mentions:    numMentions,
     num_sources:     numSources,
@@ -1038,7 +1049,7 @@ function buildFileUrls(days = 7, stepHours = 6) {
 let cache = {
   events:    null,
   fetchedAt: null,
-  ttlMs:     15 * 60 * 1000, // 15 minutes — matches GDELT publish cadence
+  ttlMs:     15 * 60 * 1000, // 15 minutes, matches GDELT publish cadence
 };
 
 // Single in-flight promise: if a fetch is already running, concurrent callers
@@ -1060,27 +1071,27 @@ export function getCacheFetchedAt() {
 export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 1000 } = {}) {
   const now = Date.now();
 
-  // 1. In-memory cache hit (fastest path — no disk I/O)
+  // 1. In-memory cache hit (fastest path, no disk I/O)
   if (cache.events && cache.fetchedAt && now - cache.fetchedAt < cache.ttlMs) {
-    console.log(`[gdelt] Memory cache hit — ${cache.events.length} events`);
+    console.log(`[gdelt] Memory cache hit, ${cache.events.length} events`);
     return cache.events.slice(0, limit);
   }
 
   // 2. Stale-while-revalidate: if a background fetch is already running and we
   //    have ANY events in memory (even stale), return them immediately rather than
   //    blocking the caller for the full Haiku pass duration. The background refresh
-  //    will update the cache when it completes — next request gets fresh data.
+  //    will update the cache when it completes, next request gets fresh data.
   if (fetchInFlight) {
     if (cache.events && cache.events.length > 0) {
-      console.log(`[gdelt] Refresh in progress — serving stale cache (${cache.events.length} events)`);
+      console.log(`[gdelt] Refresh in progress, serving stale cache (${cache.events.length} events)`);
       return cache.events.slice(0, limit);
     }
-    console.log('[gdelt] Fetch in progress, no stale data — waiting for result...');
+    console.log('[gdelt] Fetch in progress, no stale data, waiting for result...');
     await fetchInFlight;
     return (cache.events || []).slice(0, limit);
   }
 
-  // 3. Disk cache hit — load persisted events, skip all downloading + Haiku
+  // 3. Disk cache hit, load persisted events, skip all downloading + Haiku
   const disk = loadFromDisk();
   if (disk) {
     cache.events    = disk.events;
@@ -1106,9 +1117,9 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
       // Load existing events from disk to merge with new ones
       try {
         existingEvents = JSON.parse(fs.readFileSync(EVENTS_FILE, 'utf8'));
-        console.log(`[gdelt] Incremental fetch — ${existingEvents.length} existing events, adding files since ${new Date(lastFetchedAt).toISOString()}`);
+        console.log(`[gdelt] Incremental fetch, ${existingEvents.length} existing events, adding files since ${new Date(lastFetchedAt).toISOString()}`);
       } catch {
-        console.warn('[gdelt] Could not read existing events for incremental fetch — falling back to full fetch');
+        console.warn('[gdelt] Could not read existing events for incremental fetch, falling back to full fetch');
         existingEvents = [];
       }
     }
@@ -1128,7 +1139,7 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
       const batch   = urls.slice(i, i + BATCH);
       const results = await Promise.all(batch.map(downloadAndParse));
       results.forEach((evts) => newRawEvents.push(...evts));
-      console.log(`[gdelt] Batch ${Math.ceil(i / BATCH) + 1}/${Math.ceil(urls.length / BATCH)} done — ${newRawEvents.length} new raw events`);
+      console.log(`[gdelt] Batch ${Math.ceil(i / BATCH) + 1}/${Math.ceil(urls.length / BATCH)} done, ${newRawEvents.length} new raw events`);
     }
 
     // Deduplicate new events against existing IDs
@@ -1140,9 +1151,9 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
       return true;
     });
 
-    console.log(`[gdelt] ${newUnique.length} genuinely new events — running Haiku filter...`);
+    console.log(`[gdelt] ${newUnique.length} genuinely new events, running Haiku filter...`);
 
-    // Haiku only runs on the new events — existing events were already filtered
+    // Haiku only runs on the new events, existing events were already filtered
     const newFiltered = newUnique.length > 0 ? await applyHaikuFilter(newUnique) : [];
     console.log(`[gdelt] ${newFiltered.length} new events passed Haiku (removed ${newUnique.length - newFiltered.length})`);
 
@@ -1185,11 +1196,11 @@ export async function fetchConflictEvents({ days = 7, stepHours = 6, limit = 100
 // GLOBALEVENTID. The ID-based dedupe in the fetch loop only catches exact
 // repeats; semantic duplicates require two additional passes.
 //
-// Pass 1 — URL deduplication
+// Pass 1, URL deduplication
 //   Same source_url → same article → keep the entry with more mentions.
 //   Zero false-positive risk: identical URLs are definitionally the same story.
 //
-// Pass 2 — Composite fingerprint + proximity
+// Pass 2, Composite fingerprint + proximity
 //   Group by {event_date, event_type, actor1, country}. Within each group,
 //   any two events whose coordinates are within DEDUP_RADIUS_KM are treated
 //   as the same incident. Keep the higher-coverage entry; add the other's
@@ -1254,7 +1265,7 @@ function deduplicateEvents(events) {
         haversineKm(candidate.latitude, candidate.longitude, s.latitude, s.longitude) <= DEDUP_RADIUS_KM
       );
       if (isDupe) {
-        // Merge coverage into the surviving event — don't lose the signal
+        // Merge coverage into the surviving event, don't lose the signal
         const survivor = survivors.find((s) =>
           haversineKm(candidate.latitude, candidate.longitude, s.latitude, s.longitude) <= DEDUP_RADIUS_KM
         );
@@ -1270,7 +1281,7 @@ function deduplicateEvents(events) {
 
   console.log(
     `[dedup] Removed ${urlRemoved} URL dupes + ${proximityRemoved} proximity dupes` +
-    ` — ${kept.length} unique events remain (was ${events.length})`
+    `, ${kept.length} unique events remain (was ${events.length})`
   );
 
   return kept;

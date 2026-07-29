@@ -1,7 +1,7 @@
 /**
  * api/health.js
  * -------------
- * Vercel serverless function — GET /api/health
+ * Vercel serverless function, GET /api/health
  */
 
 export default function handler(req, res) {

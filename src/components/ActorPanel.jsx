@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { resolveActor } from '../utils/actors';
 
 const LABEL_STYLE = {
   fontFamily:    'Inter, sans-serif',
@@ -18,33 +19,16 @@ const LABEL_STYLE = {
  * Blueprint style: elevated-bg rows (#252a31), left-border accent on selection,
  * Blueprint blue4 for active state.
  */
-// Nationality adjectives that the backend should already normalize but that
-// can slip through on stale cached data — defense-in-depth client-side guard.
-const NATIONALITY_ADJECTIVES = new Set([
-  'Israeli','Lebanese','Iranian','Palestinian','Ukrainian','Russian','Chinese',
-  'Syrian','Yemeni','Somali','Nigerian','Sudanese','Libyan','Afghan','Iraqi',
-  'Turkish','Kurdish','Philippine','Cameroonian','Polish','Malian','Eritrean',
-  'Ethiopian','Burmese','Myanmar',
-]);
-
 export function ActorPanel({ events, searchQuery, onSearch }) {
   const topActors = useMemo(() => {
     if (!events || events.length === 0) return [];
 
-    // Build a set of country names present in this event dataset so we can
-    // suppress bare country names that leaked through as actor labels.
-    const countryNames = new Set(events.map((e) => e.country).filter(Boolean));
-
+    // Count only positively resolved actors (state forces, named armed groups,
+    // IGOs). Generic nouns, civilian roles, and place names never appear here.
     const counts = {};
     events.forEach((e) => {
-      [e.actor1, e.actor2].forEach((actor) => {
-        if (!actor || actor === 'Unknown') return;
-        // Suppress bare country names (e.g. "Lebanon", "Iran")
-        if (countryNames.has(actor)) return;
-        // Suppress unresolved nationality adjectives (stale cache defense)
-        if (NATIONALITY_ADJECTIVES.has(actor)) return;
-        counts[actor] = (counts[actor] || 0) + 1;
-      });
+      const actor = resolveActor(e);
+      if (actor) counts[actor] = (counts[actor] || 0) + 1;
     });
 
     const sorted   = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);
@@ -123,7 +107,7 @@ export function ActorPanel({ events, searchQuery, onSearch }) {
               </span>
             </div>
 
-            {/* Frequency bar — Blueprint progress track */}
+            {/* Frequency bar, Blueprint progress track */}
             <div style={{ height: '2px', background: '#383e47', position: 'relative', borderRadius: '1px' }}>
               <div style={{
                 position:     'absolute',

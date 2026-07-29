@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
+import { resolveActor } from '../utils/actors';
 import { InfoHint } from './InfoHint';
 
 // Blueprint-style column label
@@ -14,7 +15,7 @@ const COL_LABEL = {
   whiteSpace:    'nowrap',
 };
 
-// Blueprint minimal button style — subtle bg, 2px radius
+// Blueprint minimal button style, subtle bg, 2px radius
 const sortBtn = (active) => ({
   background:    active ? '#252a31' : 'transparent',
   border:        `1px solid ${active ? '#4c90f040' : '#383e47'}`,
@@ -31,13 +32,13 @@ const sortBtn = (active) => ({
 });
 
 /**
- * EventFeed — scrollable event table, bottom-left panel.
+ * EventFeed, scrollable event table, bottom-left panel.
  * Blueprint dark surface (#1c2127) with inner row borders (#383e47).
  *
  * High-impact rows (score ≥ 8) carry a red left-edge accent.
  * Selected row uses a Blueprint primary blue tint.
  */
-export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) {
+export function EventFeed({ events, onEventClick, selectedEventId, onDismiss, confirmedIds }) {
   const [sortBy, setSortBy] = useState('impact'); // 'impact' | 'date'
 
   const sorted = [...events].sort((a, b) =>
@@ -79,7 +80,7 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
         }}>
           EVENT FEED
           <InfoHint
-            text="A list of every event on the map. Click any row to see full details — who was involved, where it happened, and how severe it was."
+            text="A list of every event on the map. Click any row to see full details, who was involved, where it happened, and how severe it was."
             position="below"
             width={230}
           />
@@ -112,10 +113,12 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
         </div>
       </div>
 
-      {/* Column headers — Blueprint table head style */}
+      {/* Column headers, Blueprint table head style.
+          KIA column removed: GDELT carries no fatality counts, so it was always
+          empty. Fatalities remain in the detail panel for UCDP-sourced events. */}
       <div style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 36px 1fr 1fr 52px 38px 26px 22px',
+        gridTemplateColumns: '4px 90px 22px 36px 1fr 1fr 38px 26px 22px',
         height:              '24px',
         alignItems:          'center',
         borderBottom:        '1px solid #383e47',
@@ -128,7 +131,6 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
         <span />
         <span style={COL_LABEL}>LOCATION</span>
         <span style={COL_LABEL}>ACTOR</span>
-        <span style={{ ...COL_LABEL, textAlign: 'right' }}>KIA</span>
         <span style={{ ...COL_LABEL, textAlign: 'right' }}>SCORE</span>
         <span />
         <span />
@@ -155,6 +157,7 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
               key={event.event_id_cnty}
               event={event}
               isSelected={selectedEventId === event.event_id_cnty}
+              isConfirmed={confirmedIds ? confirmedIds.has(String(event.event_id_cnty)) : false}
               onClick={() => onEventClick?.(event)}
               onDismiss={onDismiss ? () => onDismiss(event.event_id_cnty) : null}
             />
@@ -165,11 +168,10 @@ export function EventFeed({ events, onEventClick, selectedEventId, onDismiss }) 
   );
 }
 
-function EventRow({ event, onClick, isSelected, onDismiss }) {
+function EventRow({ event, onClick, isSelected, isConfirmed, onDismiss }) {
   const [hovered, setHovered] = React.useState(false);
   const eventType  = EVENT_TYPES[event.event_type];
   const isUCDP     = event.source === 'ucdp';
-  const fatalities = event.fatalities_best ?? null;
 
   const score        = event.impact_score ?? 0;
   const isHighImpact = score >= 8;
@@ -181,13 +183,14 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
     isMedImpact  ? '#fbb360' :  // Blueprint orange5
                    '#8492a6';   // Blueprint gray1
 
-  // Left accent bar color
+  // Left accent bar color, green when analyst-confirmed, else impact/selection
   const accentColor =
+    isConfirmed  ? '#32a467' :   // Blueprint green4, confirmed valid signal
     isSelected   ? '#4c90f0' :   // Blueprint blue4
     isHighImpact ? '#e76a6e80' : // Blueprint red4 @ 50%
     'transparent';
 
-  // Row background — Blueprint table row hover pattern
+  // Row background, Blueprint table row hover pattern
   const bgColor =
     isSelected   ? '#215db020' :  // Blueprint blue2 @ 12%
     hovered      ? '#2f343c' :    // Blueprint dark-gray3 hover
@@ -201,7 +204,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         display:             'grid',
-        gridTemplateColumns: '4px 90px 22px 36px 1fr 1fr 52px 38px 26px 22px',
+        gridTemplateColumns: '4px 90px 22px 36px 1fr 1fr 38px 26px 22px',
         minHeight:           '34px',
         alignItems:          'center',
         borderBottom:        `1px solid #383e4766`,  // Blueprint dark-gray4 at 40%
@@ -219,7 +222,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         transition: 'background 0.15s',
       }} />
 
-      {/* Date — Blueprint monospace dim */}
+      {/* Date, Blueprint monospace dim */}
       <span style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize:   '10px',
@@ -230,7 +233,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         {event.event_date}
       </span>
 
-      {/* Type indicator — rotated diamond */}
+      {/* Type indicator, rotated diamond */}
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{
           width:      '5px',
@@ -242,9 +245,24 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         }} />
       </span>
 
-      {/* Source / corroboration badge */}
+      {/* Confirmed / source / corroboration badge (confirmed takes priority) */}
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {isUCDP ? (
+        {isConfirmed ? (
+          <span title="Analyst-confirmed valid signal" style={{
+            fontFamily:    'Inter, sans-serif',
+            fontSize:      '7px',
+            fontWeight:    700,
+            letterSpacing: '0.04em',
+            color:         '#32a467',
+            background:    '#32a4671a',
+            border:        '1px solid #32a46740',
+            borderRadius:  '2px',
+            padding:       '1px 3px',
+            lineHeight:    1,
+          }}>
+            ✓
+          </span>
+        ) : isUCDP ? (
           <span style={{
             fontFamily:    'Inter, sans-serif',
             fontSize:      '7px',
@@ -277,7 +295,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         ) : null}
       </span>
 
-      {/* Location — primary text */}
+      {/* Location, primary text */}
       <span style={{
         fontFamily:   'Inter, sans-serif',
         fontSize:     '11px',
@@ -291,34 +309,25 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         {event.location}
       </span>
 
-      {/* Actor — secondary text */}
-      <span style={{
-        fontFamily:   'Inter, sans-serif',
-        fontSize:     '10px',
-        color:        event.actor1 === 'Unknown' ? '#8492a6' : '#c5cdd9',
-        padding:      '0 8px',
-        overflow:     'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace:   'nowrap',
-        fontStyle:    event.actor1 === 'Unknown' ? 'italic' : 'normal',
-      }}>
-        {event.actor1 !== 'Unknown'
-          ? event.actor1
-          : (event.actor2 !== 'Unknown' ? event.actor2 : event.country)}
-      </span>
-
-      {/* KIA — fatalities from UCDP, blank for GDELT */}
-      <span style={{
-        fontFamily:    'JetBrains Mono, monospace',
-        fontSize:      '10px',
-        fontWeight:    600,
-        color:         fatalities > 0 ? '#e76a6e' : '#383e47',
-        padding:       '0 4px',
-        textAlign:     'right',
-        letterSpacing: '0.02em',
-      }}>
-        {fatalities != null && fatalities > 0 ? fatalities.toLocaleString() : '—'}
-      </span>
+      {/* Actor, only real, resolvable actors; otherwise "Unattributed".
+          Never a city name or a generic noun (see utils/actors.js). */}
+      {(() => {
+        const actor = resolveActor(event);
+        return (
+          <span style={{
+            fontFamily:   'Inter, sans-serif',
+            fontSize:     '10px',
+            color:        actor ? '#c5cdd9' : '#8492a6',
+            padding:      '0 8px',
+            overflow:     'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace:   'nowrap',
+            fontStyle:    actor ? 'normal' : 'italic',
+          }}>
+            {actor || 'Unattributed'}
+          </span>
+        );
+      })()}
 
       {/* Impact score */}
       <span style={{
@@ -362,7 +371,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         )}
       </span>
 
-      {/* Dismiss — hover-reveal */}
+      {/* Dismiss, hover-reveal */}
       <span
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => e.stopPropagation()}
@@ -370,7 +379,7 @@ function EventRow({ event, onClick, isSelected, onDismiss }) {
         {onDismiss && hovered ? (
           <button
             onClick={onDismiss}
-            title="Mark as noise — remove from feed"
+            title="Mark as noise, remove from feed"
             style={{
               background:   'transparent',
               border:       'none',

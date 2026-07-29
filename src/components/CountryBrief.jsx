@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { EVENT_TYPES } from '../utils/constants';
+import { resolveActor } from '../utils/actors';
 
 const LABEL_STYLE = {
   fontFamily:    'Inter, sans-serif',
@@ -103,8 +104,8 @@ export function CountryBrief({ country, events, onClose }) {
 
     const actorCounts = {};
     countryEvents.forEach((e) => {
-      if (e.actor1 && e.actor1 !== 'Unknown') actorCounts[e.actor1] = (actorCounts[e.actor1] || 0) + 1;
-      if (e.actor2 && e.actor2 !== 'Unknown') actorCounts[e.actor2] = (actorCounts[e.actor2] || 0) + 1;
+      const actor = resolveActor(e);
+      if (actor) actorCounts[actor] = (actorCounts[actor] || 0) + 1;
     });
     const topActors = Object.entries(actorCounts)
       .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([name]) => name);
@@ -340,7 +341,7 @@ export function CountryBrief({ country, events, onClose }) {
 
         <div style={{ borderTop: '1px solid #383e47', marginBottom: '14px' }} />
 
-        {/* Key metrics — Blueprint card grid */}
+        {/* Key metrics, Blueprint card grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '14px' }}>
           <Metric label="TOTAL EVENTS"   value={brief.totalEvents} mono />
           <Metric
@@ -423,7 +424,7 @@ export function CountryBrief({ country, events, onClose }) {
           );
         })}
 
-        {/* Humanitarian reports — ReliefWeb */}
+        {/* Humanitarian reports, ReliefWeb */}
         <div style={{ borderTop: '1px solid #383e47', marginTop: '6px', marginBottom: '14px' }} />
         <div style={{ ...LABEL_STYLE, marginBottom: '10px' }}>HUMANITARIAN REPORTS</div>
 

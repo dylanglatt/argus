@@ -21,7 +21,7 @@ function useIsMobile(breakpoint = 768) {
 }
 
 /**
- * App — single-viewport layout.
+ * App, single-viewport layout.
  *
  * Blueprint dark theme: pageBg (#111418) behind all panels.
  * Panels carry panelBg (#1c2127) to create surface elevation.
@@ -64,6 +64,7 @@ export default function App() {
   const {
     events, filteredEvents, availableCountries,
     stats, dataSource, fetchedAt, dismissEvent, confirmEvent, loading,
+    confirmedIds,
   } = useEventData(filters);
 
   const handleEventClick = (event) => {
@@ -84,7 +85,7 @@ export default function App() {
       background:    '#111418',
       overflow:      'hidden',
     }}>
-      {/* Mission Brief — post-boot orientation overlay */}
+      {/* Mission Brief, post-boot orientation overlay */}
       {showBrief && <MissionBrief onDismiss={() => setShowBrief(false)} />}
 
       {/* Header */}
@@ -103,7 +104,7 @@ export default function App() {
       {/* Main workspace */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-        {/* Filter panel — desktop: 280px sidebar; mobile: hidden */}
+        {/* Filter panel, desktop: 280px sidebar; mobile: hidden */}
         {!isMobile && (
           <FilterPanel
             filters={filters}
@@ -226,6 +227,7 @@ export default function App() {
                 onEventClick={handleEventClick}
                 selectedEventId={selectedEvent?.event_id_cnty}
                 onDismiss={dismissEvent}
+                confirmedIds={confirmedIds}
               />
               <TimeChart events={filteredEvents} />
               <EventDetailPanel
@@ -233,6 +235,7 @@ export default function App() {
                 onClose={() => setSelectedEvent(null)}
                 onConfirm={confirmEvent}
                 onDismiss={(id) => { dismissEvent(id); setSelectedEvent(null); }}
+                isConfirmed={selectedEvent ? confirmedIds.has(String(selectedEvent.event_id_cnty)) : false}
               />
             </div>
           )}
@@ -294,12 +297,14 @@ export default function App() {
                   onEventClick={handleEventClick}
                   selectedEventId={selectedEvent?.event_id_cnty}
                   onDismiss={dismissEvent}
+                  confirmedIds={confirmedIds}
                 />
                 <EventDetailPanel
                   event={selectedEvent}
                   onClose={() => setSelectedEvent(null)}
                   onConfirm={confirmEvent}
                   onDismiss={(id) => { dismissEvent(id); setSelectedEvent(null); }}
+                  isConfirmed={selectedEvent ? confirmedIds.has(String(selectedEvent.event_id_cnty)) : false}
                 />
               </div>
             </div>
@@ -352,7 +357,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Status bar — 26px */}
+      {/* Status bar, 26px */}
       <StatusBar dataSource={dataSource} />
     </div>
   );
@@ -389,7 +394,7 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
       }}>
         MAP
         <InfoHint
-          text="Each dot is a conflict event. Bigger dots are more severe. Colors show the type — red for battles, orange for explosions. Zoom in to see individual events."
+          text="Each dot is a conflict event. Bigger dots are more severe. Colors show the type, red for battles, orange for explosions. Zoom in to see individual events."
           position="below"
           width={240}
         />
@@ -511,7 +516,7 @@ function TimeWindowBar({ value, onChange, eventCount, showThermal, onToggleTherm
         }} />
         SAT
         <InfoHint
-          text="Show satellite heat data. Highlights fires and explosions detected from space — useful for confirming ground reports."
+          text="Show satellite heat data. Highlights fires and explosions detected from space, useful for confirming ground reports."
           position="below"
           width={210}
         />
@@ -791,7 +796,7 @@ function StatusBar({ dataSource }) {
     <div style={{
       height:         '26px',
       minHeight:      '26px',
-      background:     '#1c2127',    // Blueprint panelBg — matches header
+      background:     '#1c2127',    // Blueprint panelBg, matches header
       borderTop:      '1px solid #2f343c',
       display:        'flex',
       alignItems:     'center',
